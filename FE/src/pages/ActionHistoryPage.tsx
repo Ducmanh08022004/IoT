@@ -13,6 +13,16 @@ const ACTION_HISTORY_FIND_BY_OPTIONS: Array<{ value: ActionHistoryFindBy; label:
   { value: 'date', label: 'Date' },
 ];
 
+type ActionHistorySortBy = 'id' | 'device.nameDevice' | 'action' | 'status' | 'dateTime';
+
+const ACTION_HISTORY_SORT_BY_OPTIONS: Array<{ value: ActionHistorySortBy; label: string }> = [
+  { value: 'id', label: 'ID' },
+  { value: 'device.nameDevice', label: 'Device Name' },
+  { value: 'action', label: 'Action' },
+  { value: 'status', label: 'Status' },
+  { value: 'dateTime', label: 'Time' },
+];
+
 const PAGE_SIZE_OPTIONS = [5, 10, 15];
 
 export function ActionHistoryPage() {
@@ -22,12 +32,14 @@ export function ActionHistoryPage() {
   const [findBy, setFindBy] = useState<ActionHistoryFindBy>('nameDevice');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState<ActionHistorySortBy>('dateTime');
   const [sortOrder, setSortOrder] = useState<SortDirection>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadRows = useCallback(async (
     queryValue: string,
+    sortByValue: ActionHistorySortBy,
     direction: SortDirection,
     findByValue: ActionHistoryFindBy,
     pageValue: number,
@@ -45,7 +57,7 @@ export function ActionHistoryPage() {
           {
             page: pageValue,
             size,
-            sortBy: 'dateTime',
+            sortBy: sortByValue,
             direction,
           },
         );
@@ -78,7 +90,7 @@ export function ActionHistoryPage() {
         {
           page: pageValue,
           size,
-          sortBy: 'dateTime',
+          sortBy: sortByValue,
           direction,
         },
       );
@@ -93,37 +105,44 @@ export function ActionHistoryPage() {
   }, []);
 
   useEffect(() => {
-    void loadRows('', 'desc', 'nameDevice', 0, pageSize);
+    void loadRows('', 'dateTime', 'desc', 'nameDevice', 0, pageSize);
   }, [loadRows]);
 
   const handleSortChange = (nextOrder: SortDirection) => {
     setPage(0);
     setSortOrder(nextOrder);
-    void loadRows(query, nextOrder, findBy, 0, pageSize);
+    void loadRows(query, sortBy, nextOrder, findBy, 0, pageSize);
+  };
+
+  const handleSortByChange = (nextSortBy: string) => {
+    const resolved = nextSortBy as ActionHistorySortBy;
+    setPage(0);
+    setSortBy(resolved);
+    void loadRows(query, resolved, sortOrder, findBy, 0, pageSize);
   };
 
   const handleFindByChange = (nextFindBy: string) => {
     const resolved = nextFindBy as ActionHistoryFindBy;
     setPage(0);
     setFindBy(resolved);
-    void loadRows(query, sortOrder, resolved, 0, pageSize);
+    void loadRows(query, sortBy, sortOrder, resolved, 0, pageSize);
   };
 
   const handlePageSizeChange = (nextSize: number) => {
     const resolvedSize = Math.min(nextSize, 15);
     setPage(0);
     setPageSize(resolvedSize);
-    void loadRows(query, sortOrder, findBy, 0, resolvedSize);
+    void loadRows(query, sortBy, sortOrder, findBy, 0, resolvedSize);
   };
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
-    void loadRows(query, sortOrder, findBy, nextPage, pageSize);
+    void loadRows(query, sortBy, sortOrder, findBy, nextPage, pageSize);
   };
 
   const handleSearch = () => {
     setPage(0);
-    void loadRows(query, sortOrder, findBy, 0, pageSize);
+    void loadRows(query, sortBy, sortOrder, findBy, 0, pageSize);
   };
 
   return (
@@ -136,6 +155,9 @@ export function ActionHistoryPage() {
         onFindByChange={handleFindByChange}
         query={query}
         onQueryChange={setQuery}
+        sortBy={sortBy}
+        sortByOptions={ACTION_HISTORY_SORT_BY_OPTIONS}
+        onSortByChange={handleSortByChange}
         sortOrder={sortOrder}
         onSortOrderChange={handleSortChange}
         onSearch={handleSearch}

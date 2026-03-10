@@ -22,6 +22,7 @@ public class DataSensorService {
         private static final int MAX_PAGE_SIZE = 100;
         private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
                         "id",
+                        "sensor.nameSensor",
                         "value",
                         "dateTime"
         );

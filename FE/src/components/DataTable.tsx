@@ -20,6 +20,9 @@ type DataTableProps<T extends { id: number }> = {
   onFindByChange: (value: string) => void;
   onQueryChange: (query: string) => void;
   searchAddon?: React.ReactNode;
+  sortBy: string;
+  sortByOptions: FindByOption[];
+  onSortByChange: (value: string) => void;
   sortOrder: 'asc' | 'desc';
   onSortOrderChange: (order: 'asc' | 'desc') => void;
   onSearch: () => void;
@@ -42,6 +45,9 @@ export function DataTable<T extends { id: number }>({
   onFindByChange,
   onQueryChange,
   searchAddon,
+  sortBy,
+  sortByOptions,
+  onSortByChange,
   sortOrder,
   onSortOrderChange,
   onSearch,
@@ -65,7 +71,16 @@ export function DataTable<T extends { id: number }>({
     <section className="panel table-panel">
       <div className="toolbar">
         <div className="toolbar__sort">
-          <span>SORT:</span>
+          <span>SORT BY:</span>
+          <label className="select-wrap">
+            <select value={sortBy} onChange={(event) => onSortByChange(event.target.value)}>
+              {sortByOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={() => onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}

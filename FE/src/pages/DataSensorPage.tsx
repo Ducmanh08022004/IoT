@@ -13,6 +13,15 @@ const DATA_SENSOR_FIND_BY_OPTIONS: Array<{ value: DataSensorFindBy; label: strin
   { value: 'dateTime', label: 'Date' },
 ];
 
+type DataSensorSortBy = 'id' | 'sensor.nameSensor' | 'value' | 'dateTime';
+
+const DATA_SENSOR_SORT_BY_OPTIONS: Array<{ value: DataSensorSortBy; label: string }> = [
+  { value: 'id', label: 'ID' },
+  { value: 'sensor.nameSensor', label: 'Sensor Name' },
+  { value: 'value', label: 'Value' },
+  { value: 'dateTime', label: 'Time' },
+];
+
 const SENSOR_UNIT_OPTIONS: Array<{ value: SensorUnit; label: string }> = [
   { value: '%', label: '%' },
   { value: 'degC', label: '°C' },
@@ -35,12 +44,14 @@ export function DataSensorPage() {
   const [valueUnit, setValueUnit] = useState<SensorUnit>('%');
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState<DataSensorSortBy>('dateTime');
   const [sortOrder, setSortOrder] = useState<SortDirection>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadRows = useCallback(async (
     queryValue: string,
+    sortByValue: DataSensorSortBy,
     direction: SortDirection,
     findByValue: DataSensorFindBy,
     unit: SensorUnit,
@@ -59,7 +70,7 @@ export function DataSensorPage() {
           {
             page: pageValue,
             size,
-            sortBy: 'dateTime',
+            sortBy: sortByValue,
             direction,
           },
         );
@@ -95,7 +106,7 @@ export function DataSensorPage() {
       let result = await searchDataSensor(body, {
         page: pageValue,
         size,
-        sortBy: 'dateTime',
+        sortBy: sortByValue,
         direction,
       });
 
@@ -107,7 +118,7 @@ export function DataSensorPage() {
             {
               page: pageValue,
               size,
-              sortBy: 'dateTime',
+              sortBy: sortByValue,
               direction,
             },
           );
@@ -128,20 +139,27 @@ export function DataSensorPage() {
   }, []);
 
   useEffect(() => {
-    void loadRows('', 'desc', 'nameSensor', valueUnit, 0, pageSize);
+    void loadRows('', 'dateTime', 'desc', 'nameSensor', valueUnit, 0, pageSize);
   }, [loadRows]);
 
   const handleSortChange = (nextOrder: SortDirection) => {
     setPage(0);
     setSortOrder(nextOrder);
-    void loadRows(query, nextOrder, findBy, valueUnit, 0, pageSize);
+    void loadRows(query, sortBy, nextOrder, findBy, valueUnit, 0, pageSize);
+  };
+
+  const handleSortByChange = (nextSortBy: string) => {
+    const resolved = nextSortBy as DataSensorSortBy;
+    setPage(0);
+    setSortBy(resolved);
+    void loadRows(query, resolved, sortOrder, findBy, valueUnit, 0, pageSize);
   };
 
   const handleFindByChange = (nextFindBy: string) => {
     const resolved = nextFindBy as DataSensorFindBy;
     setPage(0);
     setFindBy(resolved);
-    void loadRows(query, sortOrder, resolved, valueUnit, 0, pageSize);
+    void loadRows(query, sortBy, sortOrder, resolved, valueUnit, 0, pageSize);
   };
 
   const handleUnitChange = (nextUnit: string) => {
@@ -149,7 +167,7 @@ export function DataSensorPage() {
     setValueUnit(resolved);
     setPage(0);
     if (findBy === 'value') {
-      void loadRows(query, sortOrder, findBy, resolved, 0, pageSize);
+      void loadRows(query, sortBy, sortOrder, findBy, resolved, 0, pageSize);
     }
   };
 
@@ -157,17 +175,17 @@ export function DataSensorPage() {
     const resolvedSize = Math.min(nextSize, 15);
     setPage(0);
     setPageSize(resolvedSize);
-    void loadRows(query, sortOrder, findBy, valueUnit, 0, resolvedSize);
+    void loadRows(query, sortBy, sortOrder, findBy, valueUnit, 0, resolvedSize);
   };
 
   const handlePageChange = (nextPage: number) => {
     setPage(nextPage);
-    void loadRows(query, sortOrder, findBy, valueUnit, nextPage, pageSize);
+    void loadRows(query, sortBy, sortOrder, findBy, valueUnit, nextPage, pageSize);
   };
 
   const handleSearch = () => {
     setPage(0);
-    void loadRows(query, sortOrder, findBy, valueUnit, 0, pageSize);
+    void loadRows(query, sortBy, sortOrder, findBy, valueUnit, 0, pageSize);
   };
 
   return (
@@ -193,6 +211,9 @@ export function DataSensorPage() {
             </label>
           ) : undefined
         }
+        sortBy={sortBy}
+        sortByOptions={DATA_SENSOR_SORT_BY_OPTIONS}
+        onSortByChange={handleSortByChange}
         sortOrder={sortOrder}
         onSortOrderChange={handleSortChange}
         onSearch={handleSearch}

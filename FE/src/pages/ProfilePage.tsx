@@ -1,4 +1,4 @@
-import { Download, ExternalLink, Mail, Phone } from 'lucide-react';
+import { Download, ExternalLink } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { profileData } from '../data/mockData';
 

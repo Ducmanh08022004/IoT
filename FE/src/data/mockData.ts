@@ -49,6 +49,6 @@ export const profileData = {
   phone: '0349774954',
   github: 'https://github.com/Ducmanh08022004/IoT',
   figma:
-    'https://www.figma.com/design/nqYIjG8oPNACWYuS5BDQgS/IoT?node-id=105-477&t=6Ok8kydQ6wWB7Gtz-1',
+    'https://www.figma.com/design/nqY1jG8oPNACWYuS5BDQgS/IoT?node-id=0-1&t=a7V9ytocVPVXebPO-1',
   pdfLabel: 'Nhấn để tải về',
 };

@@ -141,7 +141,6 @@ export function DashboardPage() {
       }
       setLatestValues(latest);
     } catch {
-      // Keep chart visible with current values if API is unavailable.
     }
   }, []);
 
@@ -315,7 +314,7 @@ export function DashboardPage() {
     <section className="page">
       <PageHeader
         title="Dashboard"
-        subtitle={`Theo dõi chỉ số môi trường và điều khiển thiết bị theo thời gian thực. WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
+        subtitle={`WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
       />
 
       <div className="stats-grid">

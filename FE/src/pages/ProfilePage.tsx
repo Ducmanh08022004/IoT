@@ -26,7 +26,7 @@ function LinkField({ label, value }: { label: string; value: string }) {
 export function ProfilePage() {
   return (
     <section className="page">
-      <PageHeader title="Profile" subtitle="Thông tin cá nhân và các đường dẫn tài liệu của dự án." />
+      <PageHeader title="Profile" subtitle="Thông tin cá nhân và các đường dẫn tài liệu." />
 
       <section className="profile-hero panel">
         <div className="avatar-frame">
@@ -44,17 +44,6 @@ export function ProfilePage() {
             <InfoField label="Birthday" value={profileData.birthday} />
             <InfoField label="Gmail" value={profileData.gmail} />
             <InfoField label="Phone number" value={profileData.phone} />
-          </div>
-
-          <div className="profile-contact-row">
-            <div>
-              <Mail size={18} />
-              <span>{profileData.gmail}</span>
-            </div>
-            <div>
-              <Phone size={18} />
-              <span>{profileData.phone}</span>
-            </div>
           </div>
         </article>
 

@@ -1,7 +1,6 @@
 package com.iot.specification;
 
 import com.iot.entity.DataSensor;
-import com.iot.entity.Sensor;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -22,23 +21,14 @@ public class DataSensorSpecification {
                 CriteriaQuery<?> query,
                 CriteriaBuilder cb) -> {
 
-            // Chỉ fetch khi không phải query count
-            if (!Long.class.equals(query.getResultType())) {
-                root.fetch("sensor", JoinType.LEFT);
-                query.distinct(true);   // tránh duplicate row
-            }
-
             List<Predicate> predicates = new ArrayList<>();
 
-
-            Join<DataSensor, Sensor> sensorJoin =
-                    root.join("sensor", JoinType.LEFT);
-
             if (nameSensor != null && !nameSensor.isBlank()) {
+                String normalizedName = nameSensor.trim().toLowerCase();
                 predicates.add(
                         cb.like(
-                                cb.lower(sensorJoin.get("nameSensor")),
-                                "%" + nameSensor.toLowerCase() + "%"
+                                cb.lower(root.get("sensor").get("nameSensor")),
+                                "%" + normalizedName + "%"
                         )
                 );
             }
@@ -51,11 +41,10 @@ public class DataSensorSpecification {
 
             if (date != null) {
                 LocalDateTime start = date.atStartOfDay();
-                LocalDateTime end = date.atTime(23, 59, 59);
+                LocalDateTime endExclusive = date.plusDays(1).atStartOfDay();
 
-                predicates.add(
-                        cb.between(root.get("dateTime"), start, end)
-                );
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
+                predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

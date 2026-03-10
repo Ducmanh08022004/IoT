@@ -172,7 +172,7 @@ export function DataSensorPage() {
 
   return (
     <section className="page page--table">
-      <PageHeader title="Data Sensor" subtitle="Lịch sử dữ liệu thu thập từ các cảm biến trong phòng khách." />
+      <PageHeader title="Data Sensor" subtitle="Lịch sử dữ liệu thu thập từ các cảm biến" />
       <DataTable
         rows={rows}
         findBy={findBy}

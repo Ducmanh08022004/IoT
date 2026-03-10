@@ -1,7 +1,6 @@
 package com.iot.specification;
 
 import com.iot.entity.ActionHistory;
-import com.iot.entity.Device;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -23,46 +22,36 @@ public class ActionHistorySpecification {
                 CriteriaQuery<?> query,
                 CriteriaBuilder cb) -> {
 
-            // Chỉ fetch khi không phải query count
-            if (!Long.class.equals(query.getResultType())) {
-                root.fetch("device", JoinType.LEFT);
-                query.distinct(true);   // tránh duplicate row
-            }
-
             List<Predicate> predicates = new ArrayList<>();
 
-
-            Join<ActionHistory, Device> deviceJoin =
-                    root.join("device", JoinType.LEFT);
-
             if (nameDevice != null && !nameDevice.isBlank()) {
+                String normalizedName = nameDevice.trim().toLowerCase();
                 predicates.add(
                         cb.like(
-                                cb.lower(deviceJoin.get("nameDevice")),
-                                "%" + nameDevice.toLowerCase() + "%"
+                                cb.lower(root.get("device").get("nameDevice")),
+                                "%" + normalizedName + "%"
                         )
                 );
             }
 
             if (action != null && !action.isBlank()) {
                 predicates.add(
-                        cb.equal(root.get("action"), action)
+                        cb.equal(cb.lower(root.get("action")), action.trim().toLowerCase())
                 );
             }
 
             if (status != null && !status.isBlank()) {
                 predicates.add(
-                        cb.equal(root.get("status"), status)
+                        cb.equal(cb.lower(root.get("status")), status.trim().toLowerCase())
                 );
             }
 
             if (date != null) {
                 LocalDateTime start = date.atStartOfDay();
-                LocalDateTime end = date.atTime(23, 59, 59);
+                LocalDateTime endExclusive = date.plusDays(1).atStartOfDay();
 
-                predicates.add(
-                        cb.between(root.get("dateTime"), start, end)
-                );
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
+                predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

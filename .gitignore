@@ -1,0 +1,29 @@
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend (Vite/Node)
+node_modules/
+FE/node_modules/
+dist/
+FE/dist/
+
+# Backend (Spring Boot/Maven)
+target/
+BE/target/
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# TypeScript incremental build cache
+*.tsbuildinfo

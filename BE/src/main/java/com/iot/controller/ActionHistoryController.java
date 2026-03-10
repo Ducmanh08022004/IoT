@@ -2,7 +2,6 @@ package com.iot.controller;
 
 import com.iot.dto.actionHistoryFilterRequest;
 import com.iot.dto.actionHistoryResponse;
-import com.iot.entity.ActionHistory;
 import com.iot.service.ActionHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

@@ -1,8 +1,6 @@
 package com.iot.specification;
 
-import com.iot.entity.ActionHistory;
 import com.iot.entity.DataSensor;
-import com.iot.entity.Device;
 import com.iot.entity.Sensor;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;

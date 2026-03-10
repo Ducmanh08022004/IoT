@@ -4,7 +4,6 @@ import com.iot.dto.dataSensorFilterRequest;
 import com.iot.dto.dataSensorResponse;
 import com.iot.entity.DataSensor;
 import com.iot.repository.dataSensorRepository;
-import com.iot.specification.ActionHistorySpecification;
 import com.iot.specification.DataSensorSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

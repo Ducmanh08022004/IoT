@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { CustomSelect } from './CustomSelect';
 
 type Column<T> = {
   key: keyof T;
@@ -72,15 +73,12 @@ export function DataTable<T extends { id: number }>({
       <div className="toolbar">
         <div className="toolbar__sort">
           <span>SORT BY:</span>
-          <label className="select-wrap">
-            <select value={sortBy} onChange={(event) => onSortByChange(event.target.value)}>
-              {sortByOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CustomSelect
+            value={sortBy}
+            options={sortByOptions}
+            onChange={onSortByChange}
+            ariaLabel="Sort by"
+          />
           <button
             type="button"
             onClick={() => onSortOrderChange(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -90,15 +88,12 @@ export function DataTable<T extends { id: number }>({
         </div>
 
         <div className="toolbar__search">
-          <label className="select-wrap">
-            <select value={findBy} onChange={(event) => onFindByChange(event.target.value)}>
-              {findByOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CustomSelect
+            value={findBy}
+            options={findByOptions}
+            onChange={onFindByChange}
+            ariaLabel="Find by"
+          />
 
           <label className="input-wrap">
             <Search size={18} />
@@ -170,18 +165,12 @@ export function DataTable<T extends { id: number }>({
 
       <div className="table-footer">
         <span>Rows per page:</span>
-        <label className="select-wrap">
-          <select
-            value={String(pageSize)}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CustomSelect
+          value={pageSize}
+          options={pageSizeOptions.map((size) => ({ value: size, label: String(size) }))}
+          onChange={onPageSizeChange}
+          ariaLabel="Rows per page"
+        />
         <span>
           {fromItem}-{toItem} of {total}
         </span>

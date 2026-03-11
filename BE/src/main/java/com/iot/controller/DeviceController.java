@@ -5,6 +5,7 @@ import com.iot.entity.ActionHistory;
 import com.iot.entity.Device;
 import com.iot.repository.actionHistoryRepository;
 import com.iot.repository.deviceRepository;
+import com.iot.service.ActionHistoryTimeoutService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,9 +19,12 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DeviceController {
 
+    private static final long DEVICE_ACK_TIMEOUT_SECONDS = 5;
+
     private final MqttConfig.MqttGateway mqttGateway;
     private final actionHistoryRepository actionHistoryRepo;
     private final deviceRepository deviceRepo;
+    private final ActionHistoryTimeoutService actionHistoryTimeoutService;
 
     @PostMapping("/control")
     public String control(@RequestParam String led, @RequestParam String action) {
@@ -33,6 +37,9 @@ public class DeviceController {
         history.setStatus("Pending");
         history.setDateTime(LocalDateTime.now());
         actionHistoryRepo.save(history);
+
+        actionHistoryTimeoutService.schedulePendingToFailed(history.getId(), DEVICE_ACK_TIMEOUT_SECONDS);
+
         String payload = led + " " + action;
         mqttGateway.sendToMqtt(payload, "device/control");
 

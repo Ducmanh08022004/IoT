@@ -47,6 +47,8 @@ const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | nul
   g100_livingroom: 'light',
 };
 
+const DEVICE_ACK_TIMEOUT_MS = 5000;
+
 function normalizeSensorName(sensorName: string): 'temperature' | 'humidity' | 'light' | null {
   const normalized = sensorName
     .trim()
@@ -100,6 +102,7 @@ export function DashboardPage() {
   const [isWsConnected, setIsWsConnected] = useState(false);
   const ackTimeoutRef = useRef<Partial<Record<DeviceKey, number>>>({});
   const pendingActionRef = useRef<Partial<Record<DeviceKey, DeviceAction>>>({});
+  const pendingPreviousStateRef = useRef<Partial<Record<DeviceKey, boolean>>>({});
 
   const refreshFromApi = useCallback(async () => {
     try {
@@ -154,6 +157,7 @@ export function DashboardPage() {
       }
       delete ackTimeoutRef.current[deviceName];
       delete pendingActionRef.current[deviceName];
+      delete pendingPreviousStateRef.current[deviceName];
     };
 
     try {
@@ -194,13 +198,13 @@ export function DashboardPage() {
           }));
         },
         onDeviceStatus: ({ deviceName, action, status }) => {
+          const previousState = pendingPreviousStateRef.current[deviceName];
           clearDeviceTimeout(deviceName);
-
           const isFailedStatus = typeof status === 'string' && status.toLowerCase().includes('fail');
 
           setDeviceState((previous) => ({
             ...previous,
-            [deviceName]: isFailedStatus ? action !== 'on' : action === 'on',
+            [deviceName]: isFailedStatus ? (previousState ?? previous[deviceName]) : action === 'on',
           }));
           setPending((previous) => ({
             ...previous,
@@ -222,6 +226,7 @@ export function DashboardPage() {
       });
       ackTimeoutRef.current = {};
       pendingActionRef.current = {};
+      pendingPreviousStateRef.current = {};
     };
   }, []);
 
@@ -265,21 +270,11 @@ export function DashboardPage() {
       ...previous,
       [device]: true,
     }));
+    pendingPreviousStateRef.current[device] = previousState;
 
-    setDeviceState((previous) => ({
-      ...previous,
-      [device]: nextAction === 'on',
-    }));
-
-    try {
-      await controlDevice(device, nextAction);
-
-      pendingActionRef.current[device] = nextAction;
+    const scheduleRollback = () => {
       ackTimeoutRef.current[device] = window.setTimeout(() => {
-        const pendingAction = pendingActionRef.current[device];
-        if (!pendingAction) {
-          return;
-        }
+        const fallbackState = pendingPreviousStateRef.current[device] ?? previousState;
 
         setPending((previous) => ({
           ...previous,
@@ -288,25 +283,23 @@ export function DashboardPage() {
 
         setDeviceState((previous) => ({
           ...previous,
-          [device]: previousState,
+          [device]: fallbackState,
         }));
 
         delete ackTimeoutRef.current[device];
         delete pendingActionRef.current[device];
-      }, 5000);
+        delete pendingPreviousStateRef.current[device];
+      }, DEVICE_ACK_TIMEOUT_MS);
+    };
+
+    try {
+      await controlDevice(device, nextAction);
+
+      pendingActionRef.current[device] = nextAction;
+      scheduleRollback();
     } catch {
-      setDeviceState((previous) => ({
-        ...previous,
-        [device]: previousState,
-      }));
-
-      setPending((previous) => ({
-        ...previous,
-        [device]: false,
-      }));
-
-      delete ackTimeoutRef.current[device];
-      delete pendingActionRef.current[device];
+      // Keep pending for the same timeout window, then rollback to the previous state.
+      scheduleRollback();
     }
   };
 

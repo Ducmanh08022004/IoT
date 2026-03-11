@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { CustomSelect } from '../components/CustomSelect';
 import { DataTable } from '../components/DataTable';
 import { PageHeader } from '../components/PageHeader';
 import { searchDataSensor } from '../services/iotApi';
@@ -35,6 +36,44 @@ const UNIT_SENSOR_KEYWORDS: Record<SensorUnit, string[]> = {
   degC: ['temperature', 'nhiet', 'nhiet do', 'nhiệt độ'],
   lux: ['light', 'anh sang', 'anh_sang', 'ánh sáng'],
 };
+
+function toSensorValueClass(sensorName: string, value: string): string {
+  const sensor = sensorName.trim().toLowerCase();
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return 'chip chip--neutral';
+  }
+
+  if (sensor.includes('temp') || sensor.includes('nhiet') || sensor.includes('nhiệt')) {
+    if (numeric >= 35) {
+      return 'chip chip--error';
+    }
+    if (numeric >= 30) {
+      return 'chip chip--warning';
+    }
+    return 'chip chip--success';
+  }
+
+  if (sensor.includes('humid') || sensor.includes('am') || sensor.includes('ẩm')) {
+    if (numeric < 30 || numeric > 75) {
+      return 'chip chip--warning';
+    }
+    return 'chip chip--success';
+  }
+
+  if (sensor.includes('light') || sensor.includes('sang') || sensor.includes('sáng')) {
+    if (numeric < 120) {
+      return 'chip chip--warning';
+    }
+    if (numeric > 800) {
+      return 'chip chip--accent';
+    }
+    return 'chip chip--success';
+  }
+
+  return 'chip chip--neutral';
+}
 
 export function DataSensorPage() {
   const [rows, setRows] = useState<SensorRecord[]>([]);
@@ -200,15 +239,12 @@ export function DataSensorPage() {
         onQueryChange={setQuery}
         searchAddon={
           findBy === 'value' ? (
-            <label className="select-wrap">
-              <select value={valueUnit} onChange={(event) => handleUnitChange(event.target.value)}>
-                {SENSOR_UNIT_OPTIONS.map((unitOption) => (
-                  <option key={unitOption.value} value={unitOption.value}>
-                    {unitOption.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CustomSelect
+              value={valueUnit}
+              options={SENSOR_UNIT_OPTIONS}
+              onChange={handleUnitChange}
+              ariaLabel="Value unit"
+            />
           ) : undefined
         }
         sortBy={sortBy}
@@ -228,7 +264,15 @@ export function DataSensorPage() {
         columns={[
           { key: 'id', header: 'ID' },
           { key: 'sensorName', header: 'Sensor Name' },
-          { key: 'value', header: 'Value' },
+          {
+            key: 'value',
+            header: 'Value',
+            render: (value, row) => (
+              <span className={toSensorValueClass(String(row.sensorName), String(value))}>
+                {String(value)}
+              </span>
+            ),
+          },
           { key: 'time', header: 'Time' },
         ]}
       />

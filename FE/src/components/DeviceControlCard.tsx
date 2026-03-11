@@ -19,13 +19,20 @@ export function DeviceControlCard({
   pending = false,
   onToggle,
 }: DeviceControlCardProps) {
+  const statusLabel = pending ? 'Pending...' : active ? 'Online' : 'Offline';
+  const statusClassName = pending
+    ? 'device-card__status device-card__status--pending'
+    : active
+      ? 'device-card__status device-card__status--online'
+      : 'device-card__status device-card__status--offline';
+
   return (
-    <article className="device-card" style={{ borderColor: accent }}>
+    <article className={active ? 'device-card device-card--active' : 'device-card'} style={{ borderColor: accent }}>
       <div className="device-card__media">
         <Icon size={60} strokeWidth={1.8} />
         <div>
           <p>{name}</p>
-          <span>{pending ? 'Pending...' : active ? 'Online' : 'Offline'}</span>
+          <span className={statusClassName}>{statusLabel}</span>
         </div>
       </div>
       <button

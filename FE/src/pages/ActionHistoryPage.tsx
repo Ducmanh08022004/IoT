@@ -25,6 +25,31 @@ const ACTION_HISTORY_SORT_BY_OPTIONS: Array<{ value: ActionHistorySortBy; label:
 
 const PAGE_SIZE_OPTIONS = [5, 10, 15];
 
+function toStatusClass(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.includes('success') || normalized.includes('ok') || normalized.includes('done')) {
+    return 'chip chip--success';
+  }
+  if (normalized.includes('pending') || normalized.includes('wait')) {
+    return 'chip chip--pending';
+  }
+  if (normalized.includes('fail') || normalized.includes('error')) {
+    return 'chip chip--error';
+  }
+  return 'chip chip--neutral';
+}
+
+function toActionClass(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'on') {
+    return 'chip chip--success';
+  }
+  if (normalized === 'off') {
+    return 'chip chip--warning';
+  }
+  return 'chip chip--neutral';
+}
+
 export function ActionHistoryPage() {
   const [rows, setRows] = useState<ActionHistoryRecord[]>([]);
   const [totalRows, setTotalRows] = useState(0);
@@ -172,8 +197,16 @@ export function ActionHistoryPage() {
         columns={[
           { key: 'id', header: 'ID' },
           { key: 'deviceName', header: 'Device Name' },
-          { key: 'action', header: 'Action' },
-          { key: 'status', header: 'Status' },
+          {
+            key: 'action',
+            header: 'Action',
+            render: (value) => <span className={toActionClass(String(value))}>{String(value)}</span>,
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            render: (value) => <span className={toStatusClass(String(value))}>{String(value)}</span>,
+          },
           { key: 'time', header: 'Time' },
         ]}
       />

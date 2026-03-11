@@ -18,18 +18,5 @@ public interface actionHistoryRepository extends JpaRepository<ActionHistory, Lo
     @Override
     @EntityGraph(attributePaths = {"device"})
     Page<ActionHistory> findAll(Specification<ActionHistory> spec, Pageable pageable);
-
-    @Query("""
-    SELECT new com.iot.dto.actionHistoryResponse(
-        a.id,
-        d.nameDevice,
-        a.action,
-        a.status,
-        a.dateTime
-    )
-    FROM ActionHistory a
-    JOIN a.device d
-    """)
-    Page<actionHistoryResponse> findAllWithFilter(Pageable pageable);
     Optional<ActionHistory> findTopByDeviceOrderByIdDesc(Device device);
 }

@@ -17,16 +17,4 @@ public interface dataSensorRepository extends JpaRepository<DataSensor,Long>, Jp
     @Override
     @EntityGraph(attributePaths = {"sensor"})
     Page<DataSensor> findAll(Specification<DataSensor> spec, Pageable pageable);
-
-    @Query("""
-    SELECT new com.iot.dto.dataSensorResponse(
-        a.id,
-        d.nameSensor,
-        a.value,
-        a.dateTime
-    )
-    FROM DataSensor a
-    JOIN a.sensor d
-    """)
-    Page<dataSensorResponse> findAllWithFilter(Pageable pageable);
 }

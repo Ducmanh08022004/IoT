@@ -241,7 +241,7 @@ export function DashboardPage() {
 
     const timer = window.setInterval(() => {
       void refreshFromApi();
-    }, 3000);
+    }, 2000);
 
     return () => {
       window.clearInterval(timer);

@@ -7,21 +7,11 @@ type NavigationItem = {
   icon: LucideIcon;
 };
 
-type UiTheme = 'aurora' | 'sunset' | 'graphite';
-
 type SidebarProps = {
   items: NavigationItem[];
-  theme: UiTheme;
-  onThemeChange: (theme: UiTheme) => void;
 };
 
-const themeOptions: Array<{ value: UiTheme; label: string }> = [
-  { value: 'aurora', label: 'Ocean' },
-  { value: 'sunset', label: 'Sunset' },
-  { value: 'graphite', label: 'Graphite' },
-];
-
-export function Sidebar({ items, theme, onThemeChange }: SidebarProps) {
+export function Sidebar({ items }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -46,26 +36,6 @@ export function Sidebar({ items, theme, onThemeChange }: SidebarProps) {
           </NavLink>
         ))}
       </nav>
-
-      <div className="theme-switch">
-        <p className="theme-switch__label">Theme</p>
-        <div className="theme-switch__list">
-          {themeOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onThemeChange(option.value)}
-              className={
-                option.value === theme
-                  ? 'theme-switch__option theme-switch__option--active'
-                  : 'theme-switch__option'
-              }
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
     </aside>
   );
 }

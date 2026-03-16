@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { AirVent, ClipboardList, LayoutDashboard, UserRound } from 'lucide-react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
@@ -8,10 +8,6 @@ const DataSensorPage = lazy(() => import('./pages/DataSensorPage').then((module)
 const ActionHistoryPage = lazy(() => import('./pages/ActionHistoryPage').then((module) => ({ default: module.ActionHistoryPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 
-type UiTheme = 'aurora' | 'sunset' | 'graphite';
-
-const THEME_KEY = 'iot-ui-theme';
-
 const navigationItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/data-sensor', label: 'Data Sensor', icon: AirVent },
@@ -20,19 +16,13 @@ const navigationItems = [
 ];
 
 function App() {
-  const [theme, setTheme] = useState<UiTheme>(() => {
-    const stored = window.localStorage.getItem(THEME_KEY);
-    return stored === 'sunset' || stored === 'graphite' ? stored : 'aurora';
-  });
-
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', 'aurora');
+  }, []);
 
   return (
     <div className="shell">
-      <Sidebar items={navigationItems} theme={theme} onThemeChange={setTheme} />
+      <Sidebar items={navigationItems} />
       <main className="content-shell">
         <Suspense fallback={<section className="page page--loading">Loading page...</section>}>
           <Routes>

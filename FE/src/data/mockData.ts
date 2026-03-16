@@ -50,5 +50,6 @@ export const profileData = {
   github: 'https://github.com/Ducmanh08022004/IoT',
   figma:
     'https://www.figma.com/design/nqY1jG8oPNACWYuS5BDQgS/IoT?node-id=0-1&t=a7V9ytocVPVXebPO-1',
+  pdfUrl: '/profile.pdf',
   pdfLabel: 'Nhấn để tải về',
 };

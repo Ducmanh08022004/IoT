@@ -54,10 +54,10 @@ export function ProfilePage() {
             <LinkField label="Figma" value={profileData.figma} />
             <div className="link-field">
               <span>PDF</span>
-              <button type="button" className="download-button">
+              <a href={profileData.pdfUrl} download="profile.pdf" className="download-button">
                 <Download size={16} />
                 {profileData.pdfLabel}
-              </button>
+              </a>
             </div>
           </div>
         </article>

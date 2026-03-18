@@ -11,12 +11,20 @@ function InfoField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LinkField({ label, value }: { label: string; value: string }) {
+function LinkField({
+  label,
+  value,
+  displayText,
+}: {
+  label: string;
+  value: string;
+  displayText?: string;
+}) {
   return (
     <div className="link-field">
       <span>{label}</span>
       <a href={value} target="_blank" rel="noreferrer">
-        {value}
+        {displayText ?? value}
         <ExternalLink size={15} />
       </a>
     </div>
@@ -52,6 +60,11 @@ export function ProfilePage() {
           <div className="links-grid">
             <LinkField label="Github" value={profileData.github} />
             <LinkField label="Figma" value={profileData.figma} />
+            <LinkField
+              label="API Docs"
+              value="https://documenter.getpostman.com/view/44055904/2sBXigMtdv"
+              displayText="Postman Documentation"
+            />
             <div className="link-field">
               <span>PDF</span>
               <a href={profileData.pdfUrl} download="profile.pdf" className="download-button">

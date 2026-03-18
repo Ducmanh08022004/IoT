@@ -51,3 +51,31 @@ export async function postJson<TResponse>(
     return raw as TResponse;
   }
 }
+
+export async function getJson<TResponse>(
+  path: string,
+  query?: Record<string, QueryValue>,
+): Promise<TResponse> {
+  const response = await fetch(`${IOT_CONFIG.apiBaseUrl}${path}${toQueryString(query)}`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as TResponse;
+  }
+
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return undefined as TResponse;
+  }
+
+  try {
+    return JSON.parse(raw) as TResponse;
+  } catch {
+    return raw as TResponse;
+  }
+}

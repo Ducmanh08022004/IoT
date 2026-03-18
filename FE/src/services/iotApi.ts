@@ -1,4 +1,4 @@
-import { postJson } from './http';
+import { getJson, postJson } from './http';
 import { IOT_CONFIG } from '../config/iot';
 import {
   ActionHistoryRecord,
@@ -191,7 +191,10 @@ export async function searchDataSensor(
   body: SensorSearchBody,
   options: SearchOptions,
 ): Promise<PagedResult<SensorRecord>> {
-  const response = await postJson<unknown>('/api/data-sensor/search', body, {
+  const response = await getJson<unknown>('/api/data-sensor/search', {
+    nameSensor: body.nameSensor,
+    value: body.value,
+    dateTime: body.dateTime,
     page: options.page ?? 0,
     size: options.size ?? 10,
     sortBy: options.sortBy ?? 'dateTime',
@@ -209,7 +212,11 @@ export async function searchActionHistory(
   body: ActionSearchBody,
   options: SearchOptions,
 ): Promise<PagedResult<ActionHistoryRecord>> {
-  const response = await postJson<unknown>('/api/action-history/search', body, {
+  const response = await getJson<unknown>('/api/action-history/search', {
+    nameDevice: body.nameDevice,
+    status: body.status,
+    action: body.action,
+    date: body.date,
     page: options.page ?? 0,
     size: options.size ?? 10,
     sortBy: options.sortBy ?? 'dateTime',

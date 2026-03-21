@@ -23,7 +23,7 @@ const ACTION_HISTORY_SORT_BY_OPTIONS: Array<{ value: ActionHistorySortBy; label:
   { value: 'dateTime', label: 'Time' },
 ];
 
-const PAGE_SIZE_OPTIONS = [5, 10, 15];
+const PAGE_SIZE_OPTIONS = [5, 10];
 
 function toStatusClass(value: string): string {
   const normalized = value.trim().toLowerCase();
@@ -154,7 +154,7 @@ export function ActionHistoryPage() {
   };
 
   const handlePageSizeChange = (nextSize: number) => {
-    const resolvedSize = Math.min(nextSize, 15);
+    const resolvedSize = Math.min(nextSize, 10);
     setPage(0);
     setPageSize(resolvedSize);
     void loadRows(query, sortBy, sortOrder, findBy, 0, resolvedSize);

@@ -1,4 +1,5 @@
 import { Download, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { profileData } from '../data/mockData';
 
@@ -32,6 +33,8 @@ function LinkField({
 }
 
 export function ProfilePage() {
+  const [isAvatarError, setIsAvatarError] = useState(false);
+
   return (
     <section className="page">
       <PageHeader title="Profile" subtitle="Thông tin cá nhân và các đường dẫn tài liệu." />
@@ -39,7 +42,16 @@ export function ProfilePage() {
       <section className="profile-hero panel">
         <div className="avatar-frame">
           <div className="avatar-core">
-            <span>TDM</span>
+            {isAvatarError ? (
+              <span>TDM</span>
+            ) : (
+              <img
+                src="/avatar.jpg"
+                alt="Profile avatar"
+                className="avatar-image"
+                onError={() => setIsAvatarError(true)}
+              />
+            )}
           </div>
         </div>
       </section>

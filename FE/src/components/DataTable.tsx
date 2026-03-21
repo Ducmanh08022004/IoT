@@ -55,7 +55,7 @@ export function DataTable<T extends { id: number }>({
   page,
   onPageChange,
   pageSize,
-  pageSizeOptions = [5, 10, 20, 50],
+  pageSizeOptions = [5, 10],
   onPageSizeChange,
   loading = false,
   error = null,

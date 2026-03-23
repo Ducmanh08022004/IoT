@@ -19,6 +19,7 @@ export function CustomSelect<T extends string | number>({
   ariaLabel,
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const selected = options.find((option) => option.value === value) ?? options[0];
@@ -45,8 +46,54 @@ export function CustomSelect<T extends string | number>({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setOpenUpward(false);
+      return;
+    }
+
+    const calculateDirection = () => {
+      const root = rootRef.current;
+      if (!root) {
+        return;
+      }
+
+      const menu = root.querySelector('.custom-select__menu') as HTMLDivElement | null;
+      if (!menu) {
+        return;
+      }
+
+      const triggerRect = root.getBoundingClientRect();
+      const menuHeight = menu.getBoundingClientRect().height;
+      const availableBottom = window.innerHeight - triggerRect.bottom;
+      const availableTop = triggerRect.top;
+
+      const needsOpenUpward = availableBottom < menuHeight + 8 && availableTop > availableBottom;
+      setOpenUpward(needsOpenUpward);
+    };
+
+    const frameId = window.requestAnimationFrame(calculateDirection);
+    window.addEventListener('resize', calculateDirection);
+    window.addEventListener('scroll', calculateDirection, true);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', calculateDirection);
+      window.removeEventListener('scroll', calculateDirection, true);
+    };
+  }, [isOpen, options.length]);
+
+  const rootClassName = [
+    'select-wrap',
+    'custom-select',
+    isOpen ? 'custom-select--open' : '',
+    openUpward ? 'custom-select--up' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div ref={rootRef} className={isOpen ? 'select-wrap custom-select custom-select--open' : 'select-wrap custom-select'}>
+    <div ref={rootRef} className={rootClassName}>
       <button
         type="button"
         className="custom-select__trigger"

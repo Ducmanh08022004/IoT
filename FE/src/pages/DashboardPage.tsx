@@ -304,7 +304,7 @@ export function DashboardPage() {
   };
 
   return (
-    <section className="page">
+    <section className="page page--dashboard">
       <PageHeader
         title="Dashboard"
         subtitle={`WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}

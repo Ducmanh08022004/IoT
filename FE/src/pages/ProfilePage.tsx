@@ -36,7 +36,7 @@ export function ProfilePage() {
   const [isAvatarError, setIsAvatarError] = useState(false);
 
   return (
-    <section className="page">
+    <section className="page page--profile">
       <PageHeader title="Profile" subtitle="Thông tin cá nhân và các đường dẫn tài liệu." />
 
       <section className="profile-hero panel">

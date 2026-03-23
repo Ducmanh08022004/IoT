@@ -4,6 +4,7 @@ import { ChartCard } from '../components/ChartCard';
 import { DeviceControlCard } from '../components/DeviceControlCard';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/StatCard';
+import { IOT_CONFIG } from '../config/iot';
 import { dashboardSeries, lightSeries } from '../data/mockData';
 import { controlDevice, searchDataSensor } from '../services/iotApi';
 import { connectIotRealtime } from '../services/iotRealtime';
@@ -22,6 +23,13 @@ type LightPoint = {
   time: string;
   light: number;
 };
+
+type MetricKey = 'temperature' | 'humidity' | 'light';
+type GradientStop = { at: number; color: string };
+
+const TEMP_THRESHOLDS = { low: 20, mid: 30, high: 40 } as const;
+const HUMIDITY_THRESHOLDS = { low: 40, mid: 60, high: 80 } as const;
+const LIGHT_THRESHOLDS = { low: 100, midLow: 400, midHigh: 1500, high: 3000 } as const;
 
 const DEVICE_LABELS: Record<DeviceKey, string> = {
   fan: 'Fan',
@@ -48,6 +56,99 @@ const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | nul
 };
 
 const DEVICE_ACK_TIMEOUT_MS = 5000;
+const TEMP_MOCK_BANDS: Array<[number, number]> = [[18, 21.5], [22, 29.5], [30, 35.5], [36, 42]];
+const HUMIDITY_MOCK_BANDS: Array<[number, number]> = [[20, 39], [40, 59], [60, 79], [80, 95]];
+const LIGHT_MOCK_BANDS: Array<[number, number]> = [[20, 95], [100, 380], [400, 1450], [1500, 2950], [3000, 12000]];
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function toRatio(value: number, min: number, max: number): number {
+  if (max <= min) {
+    return 0;
+  }
+  return clamp((value - min) / (max - min), 0, 1);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const normalized = hex.replace('#', '');
+  const full = normalized.length === 3
+    ? normalized.split('').map((char) => `${char}${char}`).join('')
+    : normalized;
+  return [
+    Number.parseInt(full.slice(0, 2), 16),
+    Number.parseInt(full.slice(2, 4), 16),
+    Number.parseInt(full.slice(4, 6), 16),
+  ];
+}
+
+function interpolateColor(fromHex: string, toHex: string, ratio: number): string {
+  const [fr, fg, fb] = hexToRgb(fromHex);
+  const [tr, tg, tb] = hexToRgb(toHex);
+  const r = Math.round(fr + (tr - fr) * ratio);
+  const g = Math.round(fg + (tg - fg) * ratio);
+  const b = Math.round(fb + (tb - fb) * ratio);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function interpolateGradient(ratio: number, stops: GradientStop[]): string {
+  if (stops.length === 0) {
+    return 'rgb(255, 255, 255)';
+  }
+
+  const safeRatio = clamp(ratio, 0, 1);
+  const sortedStops = [...stops].sort((a, b) => a.at - b.at);
+
+  if (safeRatio <= sortedStops[0].at) {
+    return sortedStops[0].color;
+  }
+
+  for (let index = 1; index < sortedStops.length; index += 1) {
+    const left = sortedStops[index - 1];
+    const right = sortedStops[index];
+
+    if (safeRatio <= right.at) {
+      const range = right.at - left.at;
+      const localRatio = range <= 0 ? 0 : (safeRatio - left.at) / range;
+      return interpolateColor(left.color, right.color, localRatio);
+    }
+  }
+
+  return sortedStops[sortedStops.length - 1].color;
+}
+
+function stopAt(value: number, min: number, max: number): number {
+  return toRatio(value, min, max);
+}
+
+function temperatureIconColor(value: number): string {
+  const ratio = toRatio(value, TEMP_THRESHOLDS.low, TEMP_THRESHOLDS.high);
+  return interpolateGradient(ratio, [
+    { at: 0, color: '#64d8ff' },
+    { at: stopAt(TEMP_THRESHOLDS.mid, TEMP_THRESHOLDS.low, TEMP_THRESHOLDS.high), color: '#ffb54a' },
+    { at: 1, color: '#b11212' },
+  ]);
+}
+
+function humidityIconColor(value: number): string {
+  const ratio = toRatio(value, HUMIDITY_THRESHOLDS.low, HUMIDITY_THRESHOLDS.high);
+  return interpolateGradient(ratio, [
+    { at: 0, color: '#d58a2f' },
+    { at: stopAt(HUMIDITY_THRESHOLDS.mid, HUMIDITY_THRESHOLDS.low, HUMIDITY_THRESHOLDS.high), color: '#38c9d6' },
+    { at: 1, color: '#1949a8' },
+  ]);
+}
+
+function lightIconColor(value: number): string {
+  const ratio = toRatio(value, LIGHT_THRESHOLDS.low, LIGHT_THRESHOLDS.high);
+  return interpolateGradient(ratio, [
+    { at: 0, color: '#6b4f2b' },
+    { at: stopAt(LIGHT_THRESHOLDS.midLow, LIGHT_THRESHOLDS.low, LIGHT_THRESHOLDS.high), color: '#c08b3e' },
+    { at: stopAt(LIGHT_THRESHOLDS.midHigh, LIGHT_THRESHOLDS.low, LIGHT_THRESHOLDS.high), color: '#ffd259' },
+    { at: 1, color: '#fff7d6' },
+  ]);
+}
 
 function normalizeSensorName(sensorName: string): 'temperature' | 'humidity' | 'light' | null {
   const normalized = sensorName
@@ -85,6 +186,42 @@ function toTimeLabel(input: string): string {
   return normalized;
 }
 
+function roundToOneDecimal(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function toNowLabel(): string {
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+function pickBandValue(bands: Array<[number, number]>, cycleIndex: number): number {
+  const [min, max] = bands[cycleIndex % bands.length];
+  return min + Math.random() * (max - min);
+}
+
+function generateMockNextAcrossThresholds(
+  previous: { temperature: number; humidity: number; light: number },
+  cycleIndex: number,
+) {
+  const tempTarget = pickBandValue(TEMP_MOCK_BANDS, cycleIndex);
+  const humidityTarget = pickBandValue(HUMIDITY_MOCK_BANDS, cycleIndex + 1);
+  const lightTarget = pickBandValue(LIGHT_MOCK_BANDS, cycleIndex + 2);
+
+  const blendFactor = cycleIndex % 2 === 0 ? 0.78 : 0.62;
+
+  const nextTemperature = previous.temperature + (tempTarget - previous.temperature) * blendFactor + (Math.random() - 0.5) * 1.1;
+  const nextHumidity = previous.humidity + (humidityTarget - previous.humidity) * blendFactor + (Math.random() - 0.5) * 2.8;
+  const nextLight = previous.light + (lightTarget - previous.light) * (blendFactor + 0.08) + (Math.random() - 0.5) * 360;
+
+  return {
+    temperature: roundToOneDecimal(clamp(nextTemperature, 18, 42)),
+    humidity: roundToOneDecimal(clamp(nextHumidity, 20, 95)),
+    light: Math.round(clamp(nextLight, 20, 12000)),
+  };
+}
+
 export function DashboardPage() {
   const [tempHumidityData, setTempHumidityData] = useState<TempHumidityPoint[]>(dashboardSeries);
   const [lightData, setLightData] = useState<LightPoint[]>(lightSeries);
@@ -100,9 +237,37 @@ export function DashboardPage() {
     light_bulb: false,
   });
   const [isWsConnected, setIsWsConnected] = useState(false);
+  const [liveMetric, setLiveMetric] = useState<Record<MetricKey, boolean>>({
+    temperature: false,
+    humidity: false,
+    light: false,
+  });
   const ackTimeoutRef = useRef<Partial<Record<DeviceKey, number>>>({});
   const pendingActionRef = useRef<Partial<Record<DeviceKey, DeviceAction>>>({});
   const pendingPreviousStateRef = useRef<Partial<Record<DeviceKey, boolean>>>({});
+  const liveMetricTimeoutRef = useRef<Partial<Record<MetricKey, number>>>({});
+  const mockTickRef = useRef<number | null>(null);
+  const mockCycleRef = useRef(0);
+
+  const pulseMetric = useCallback((metric: MetricKey) => {
+    const timeoutId = liveMetricTimeoutRef.current[metric];
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+
+    setLiveMetric((previous) => ({
+      ...previous,
+      [metric]: true,
+    }));
+
+    liveMetricTimeoutRef.current[metric] = window.setTimeout(() => {
+      setLiveMetric((previous) => ({
+        ...previous,
+        [metric]: false,
+      }));
+      delete liveMetricTimeoutRef.current[metric];
+    }, 900);
+  }, []);
 
   const refreshFromApi = useCallback(async () => {
     try {
@@ -161,6 +326,19 @@ export function DashboardPage() {
     };
 
     try {
+      if (IOT_CONFIG.useMockSensorData) {
+        setIsWsConnected(true);
+        return () => {
+          (Object.keys(liveMetricTimeoutRef.current) as MetricKey[]).forEach((metric) => {
+            const timeoutId = liveMetricTimeoutRef.current[metric];
+            if (timeoutId !== undefined) {
+              window.clearTimeout(timeoutId);
+            }
+          });
+          liveMetricTimeoutRef.current = {};
+        };
+      }
+
       disconnect = connectIotRealtime({
         onConnectionChange: setIsWsConnected,
         onSensor: ({ sensorName, value, time }) => {
@@ -170,6 +348,8 @@ export function DashboardPage() {
           if (!normalized) {
             return;
           }
+
+          pulseMetric(normalized);
 
           if (normalized === 'temperature' || normalized === 'humidity') {
             setTempHumidityData((previous) => {
@@ -194,7 +374,7 @@ export function DashboardPage() {
 
           setLatestValues((previous) => ({
             ...previous,
-            [normalized]: Math.round(value * 10) / 10,
+            [normalized]: roundToOneDecimal(value),
           }));
         },
         onDeviceStatus: ({ deviceName, action, status }) => {
@@ -227,14 +407,33 @@ export function DashboardPage() {
       ackTimeoutRef.current = {};
       pendingActionRef.current = {};
       pendingPreviousStateRef.current = {};
+      (Object.keys(liveMetricTimeoutRef.current) as MetricKey[]).forEach((metric) => {
+        const timeoutId = liveMetricTimeoutRef.current[metric];
+        if (timeoutId !== undefined) {
+          window.clearTimeout(timeoutId);
+        }
+      });
+      liveMetricTimeoutRef.current = {};
     };
   }, []);
 
+  const temperatureColor = temperatureIconColor(latestValues.temperature);
+  const humidityColor = humidityIconColor(latestValues.humidity);
+  const lightColor = lightIconColor(latestValues.light);
+
   useEffect(() => {
+    if (IOT_CONFIG.useMockSensorData) {
+      return;
+    }
+
     void refreshFromApi();
   }, [refreshFromApi]);
 
   useEffect(() => {
+    if (IOT_CONFIG.useMockSensorData) {
+      return;
+    }
+
     if (isWsConnected) {
       return;
     }
@@ -247,6 +446,50 @@ export function DashboardPage() {
       window.clearInterval(timer);
     };
   }, [isWsConnected, refreshFromApi]);
+
+  useEffect(() => {
+    if (!IOT_CONFIG.useMockSensorData) {
+      if (mockTickRef.current !== null) {
+        window.clearInterval(mockTickRef.current);
+        mockTickRef.current = null;
+      }
+      return;
+    }
+
+    const tick = () => {
+      setLatestValues((previous) => {
+        mockCycleRef.current += 1;
+        const next = generateMockNextAcrossThresholds(previous, mockCycleRef.current);
+        const timeLabel = toNowLabel();
+
+        setTempHumidityData((tempPrevious) => [
+          ...tempPrevious,
+          { time: timeLabel, temperature: next.temperature, humidity: next.humidity },
+        ].slice(-12));
+
+        setLightData((lightPrevious) => [
+          ...lightPrevious,
+          { time: timeLabel, light: next.light },
+        ].slice(-12));
+
+        pulseMetric('temperature');
+        pulseMetric('humidity');
+        pulseMetric('light');
+
+        return next;
+      });
+    };
+
+    tick();
+    mockTickRef.current = window.setInterval(tick, 1700);
+
+    return () => {
+      if (mockTickRef.current !== null) {
+        window.clearInterval(mockTickRef.current);
+        mockTickRef.current = null;
+      }
+    };
+  }, [pulseMetric]);
 
   const deviceCards = useMemo(
     () => [
@@ -302,13 +545,36 @@ export function DashboardPage() {
     <section className="page page--dashboard">
       <PageHeader
         title="Dashboard"
-        subtitle={`WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
+        subtitle={IOT_CONFIG.useMockSensorData
+          ? 'Mock Mode: Simulating realtime sensor stream'
+          : `WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
       />
 
       <div className="stats-grid">
-        <StatCard title="Temperature" value={`${latestValues.temperature}°C`} accent="temperature" icon={Thermometer} />
-        <StatCard title="Humidity" value={`${latestValues.humidity}%`} accent="humidity" icon={Waves} />
-        <StatCard title="Light" value={`${latestValues.light} Lux`} accent="light" icon={SunMedium} />
+        <StatCard
+          title="Temperature"
+          value={`${latestValues.temperature}°C`}
+          accent="temperature"
+          icon={Thermometer}
+          isLive={liveMetric.temperature}
+          iconColor={temperatureColor}
+        />
+        <StatCard
+          title="Humidity"
+          value={`${latestValues.humidity}%`}
+          accent="humidity"
+          icon={Waves}
+          isLive={liveMetric.humidity}
+          iconColor={humidityColor}
+        />
+        <StatCard
+          title="Light"
+          value={`${latestValues.light} Lux`}
+          accent="light"
+          icon={SunMedium}
+          isLive={liveMetric.light}
+          iconColor={lightColor}
+        />
       </div>
 
       <div className="charts-grid">

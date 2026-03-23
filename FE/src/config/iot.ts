@@ -2,6 +2,7 @@ export const IOT_CONFIG = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080',
   wsUrl: import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws',
   useSockJs: String(import.meta.env.VITE_WS_USE_SOCKJS ?? 'true').toLowerCase() === 'true',
+  useMockSensorData: String(import.meta.env.VITE_USE_MOCK_SENSOR_DATA ?? 'false').toLowerCase() === 'true',
   // ESP32 callback handles these names directly on topic device/control.
   deviceLedMap: {
     fan: import.meta.env.VITE_DEVICE_LED_FAN ?? 'fan',

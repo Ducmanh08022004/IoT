@@ -1,6 +1,8 @@
 import { LucideIcon } from 'lucide-react';
+import { DeviceKey } from '../types/iot';
 
 type DeviceControlCardProps = {
+  deviceKey: DeviceKey;
   name: string;
   icon: LucideIcon;
   active: boolean;
@@ -11,6 +13,7 @@ type DeviceControlCardProps = {
 };
 
 export function DeviceControlCard({
+  deviceKey,
   name,
   icon: Icon,
   active,
@@ -25,11 +28,21 @@ export function DeviceControlCard({
     : active
       ? 'device-card__status device-card__status--online'
       : 'device-card__status device-card__status--offline';
+  const iconClassName = pending
+    ? `device-card__icon device-card__icon--${deviceKey} device-card__icon--pending`
+    : active
+      ? `device-card__icon device-card__icon--${deviceKey} device-card__icon--on`
+      : `device-card__icon device-card__icon--${deviceKey} device-card__icon--off`;
+  const cardClassName = active
+    ? `device-card device-card--active device-card--${deviceKey}`
+    : `device-card device-card--${deviceKey}`;
 
   return (
-    <article className={active ? 'device-card device-card--active' : 'device-card'} style={{ borderColor: accent }}>
+    <article className={cardClassName} style={{ borderColor: accent }}>
       <div className="device-card__media">
-        <Icon size={60} strokeWidth={1.8} />
+        <span className={iconClassName} style={{ color: accent }} aria-hidden="true">
+          <Icon size={60} strokeWidth={1.8} />
+        </span>
         <div>
           <p>{name}</p>
           <span className={statusClassName}>{statusLabel}</span>

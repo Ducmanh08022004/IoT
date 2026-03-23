@@ -271,35 +271,30 @@ export function DashboardPage() {
       [device]: true,
     }));
     pendingPreviousStateRef.current[device] = previousState;
+    pendingActionRef.current[device] = nextAction;
 
-    const scheduleRollback = () => {
-      ackTimeoutRef.current[device] = window.setTimeout(() => {
-        const fallbackState = pendingPreviousStateRef.current[device] ?? previousState;
+    ackTimeoutRef.current[device] = window.setTimeout(() => {
+      const fallbackState = pendingPreviousStateRef.current[device] ?? previousState;
 
-        setPending((previous) => ({
-          ...previous,
-          [device]: false,
-        }));
+      setPending((previous) => ({
+        ...previous,
+        [device]: false,
+      }));
 
-        setDeviceState((previous) => ({
-          ...previous,
-          [device]: fallbackState,
-        }));
+      setDeviceState((previous) => ({
+        ...previous,
+        [device]: fallbackState,
+      }));
 
-        delete ackTimeoutRef.current[device];
-        delete pendingActionRef.current[device];
-        delete pendingPreviousStateRef.current[device];
-      }, DEVICE_ACK_TIMEOUT_MS);
-    };
+      delete ackTimeoutRef.current[device];
+      delete pendingActionRef.current[device];
+      delete pendingPreviousStateRef.current[device];
+    }, DEVICE_ACK_TIMEOUT_MS);
 
     try {
       await controlDevice(device, nextAction);
-
-      pendingActionRef.current[device] = nextAction;
-      scheduleRollback();
     } catch {
-      // Keep pending for the same timeout window, then rollback to the previous state.
-      scheduleRollback();
+      // Keep pending until the same timeout window expires, then rollback to the previous state.
     }
   };
 
@@ -338,6 +333,7 @@ export function DashboardPage() {
           {deviceCards.map((item) => (
             <DeviceControlCard
               key={item.key}
+              deviceKey={item.key}
               name={DEVICE_LABELS[item.key]}
               icon={item.icon}
               active={deviceState[item.key]}

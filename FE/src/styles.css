@@ -561,6 +561,184 @@ select {
   gap: var(--space-md);
 }
 
+.device-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 220ms ease, opacity 220ms ease, transform 220ms ease, color 220ms ease;
+}
+
+.device-card__icon svg {
+  display: block;
+}
+
+.device-card__icon--off {
+  opacity: 0.45;
+  filter: grayscale(0.85);
+}
+
+.device-card__icon--on {
+  opacity: 1;
+  filter: drop-shadow(0 8px 16px rgba(14, 152, 126, 0.28));
+  animation: icon-breathe 1.45s ease-in-out infinite;
+}
+
+.device-card__icon--pending {
+  opacity: 0.88;
+  animation: icon-pending 0.8s linear infinite;
+}
+
+.device-card__icon--fan.device-card__icon--on {
+  animation: icon-fan-spin 1s linear infinite;
+  filter: drop-shadow(0 8px 16px rgba(255, 98, 128, 0.36));
+}
+
+.device-card__icon--fan.device-card__icon--pending {
+  animation: icon-fan-idle 0.95s ease-in-out infinite;
+}
+
+.device-card__icon--air_condition.device-card__icon--on {
+  animation: icon-ac-cool 1.35s ease-in-out infinite;
+  filter: drop-shadow(0 8px 18px rgba(88, 171, 198, 0.42));
+}
+
+.device-card__icon--air_condition.device-card__icon--pending {
+  animation: icon-ac-pending 0.75s linear infinite;
+}
+
+.device-card__icon--light_bulb.device-card__icon--on {
+  animation: icon-bulb-glow 1.1s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(231, 179, 64, 0.8));
+}
+
+.device-card__icon--light_bulb.device-card__icon--pending {
+  animation: icon-bulb-pending 0.95s ease-in-out infinite;
+}
+
+@keyframes icon-breathe {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes icon-pending {
+  0% {
+    transform: rotate(0deg);
+    filter: drop-shadow(0 0 0 rgba(255, 184, 76, 0));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 14px rgba(255, 184, 76, 0.55));
+  }
+
+  100% {
+    transform: rotate(360deg);
+    filter: drop-shadow(0 0 0 rgba(255, 184, 76, 0));
+  }
+}
+
+@keyframes icon-fan-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes icon-fan-idle {
+  0% {
+    transform: rotate(-8deg) scale(0.98);
+  }
+
+  50% {
+    transform: rotate(8deg) scale(1.02);
+  }
+
+  100% {
+    transform: rotate(-8deg) scale(0.98);
+  }
+}
+
+@keyframes icon-ac-cool {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-2px) scale(1.08);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes icon-ac-pending {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: rotate(180deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(360deg);
+    opacity: 0.6;
+  }
+}
+
+@keyframes icon-bulb-glow {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(231, 179, 64, 0.44));
+  }
+
+  35% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 20px rgba(231, 179, 64, 0.9));
+  }
+
+  65% {
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 12px rgba(231, 179, 64, 0.62));
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(231, 179, 64, 0.44));
+  }
+}
+
+@keyframes icon-bulb-pending {
+  0% {
+    transform: scale(1);
+    opacity: 0.58;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.58;
+  }
+}
+
 .device-card__media p {
   margin: 0 0 var(--space-2xs);
   font-weight: 800;
@@ -1135,6 +1313,15 @@ tbody td {
 .toggle:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .device-card__icon,
+  .device-card__icon--on,
+  .device-card__icon--pending {
+    animation: none;
+    transform: none;
+  }
 }
 
 .table-state-cell {

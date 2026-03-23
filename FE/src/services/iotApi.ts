@@ -1,5 +1,6 @@
 import { getJson, postJson } from './http';
 import { IOT_CONFIG } from '../config/iot';
+import { isLightSensorName, toLuxFromLightRaw } from '../utils/light';
 import {
   ActionHistoryRecord,
   DeviceAction,
@@ -121,7 +122,7 @@ function sensorUnit(sensorName: string): string {
   if (normalized.includes('humidity') || normalized.includes('do am') || normalized.includes('độ ẩm')) {
     return '%';
   }
-  if (normalized.includes('light') || normalized.includes('anh sang') || normalized.includes('ánh sáng')) {
+  if (isLightSensorName(sensorName)) {
     return ' Lux';
   }
   return '';
@@ -135,12 +136,16 @@ function mapSensorRow(raw: unknown, fallbackId: number): SensorRecord {
       : typeof objectRow.sensorName === 'string'
         ? objectRow.sensorName
         : 'Unknown';
-  const numericValue = parseNumber(objectRow.value);
+  const rawNumericValue = parseNumber(objectRow.value);
+  const numericValue =
+    rawNumericValue !== undefined && isLightSensorName(name)
+      ? toLuxFromLightRaw(rawNumericValue)
+      : rawNumericValue;
   const normalizedValue =
-    typeof objectRow.value === 'string'
-      ? objectRow.value
-      : numericValue !== undefined
+    numericValue !== undefined
         ? `${numericValue}${sensorUnit(name)}`
+      : typeof objectRow.value === 'string'
+        ? objectRow.value
         : '-';
 
   return {

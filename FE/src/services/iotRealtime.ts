@@ -2,6 +2,7 @@ import { Client, IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client/dist/sockjs';
 import { IOT_CONFIG } from '../config/iot';
 import { DeviceAction, DeviceKey, DeviceRealtimeMessage, SensorRealtimeMessage } from '../types/iot';
+import { toLuxFromLightRaw } from '../utils/light';
 
 type RealtimeHandlers = {
   onSensor: (message: SensorRealtimeMessage) => void;
@@ -161,7 +162,8 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
         if (key === 'humidity' || key === 'humid') {
           return { sensorName: 'Humidity', value, time: now };
         }
-        return { sensorName: 'Light', value, time: now };
+        const lightValue = key === 'lux' ? value : toLuxFromLightRaw(value);
+        return { sensorName: 'Light', value: lightValue, time: now };
       })
       .filter((item): item is SensorRealtimeMessage => item !== null);
 
@@ -213,9 +215,12 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
       const rawValue = data[key];
       const numericValue = parseNumeric(rawValue);
       if (numericValue !== null) {
+        const normalizedValue = label === 'Light' && key !== 'lux'
+          ? toLuxFromLightRaw(numericValue)
+          : numericValue;
         parsed.push({
           sensorName: label,
-          value: numericValue,
+          value: normalizedValue,
           time:
             typeof data.dateTime === 'string'
               ? data.dateTime

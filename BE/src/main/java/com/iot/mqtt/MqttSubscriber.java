@@ -2,6 +2,7 @@ package com.iot.mqtt;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.iot.config.MqttConfig;
 import com.iot.entity.DataSensor;
 import com.iot.entity.Sensor;
 import com.iot.repository.actionHistoryRepository;
@@ -14,6 +15,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -25,12 +27,15 @@ public class MqttSubscriber {
     private static final double LIGHT_R = 10000.0;
     private static final double LIGHT_GAMMA = 1.405;
     private static final double LIGHT_MAX_LUX = 100000.0;
+    private static final int RECONNECT_SYNC_DEBOUNCE_SECONDS = 15;
 
     private final dataSensorRepository dataSensorRepo;
     private final actionHistoryRepository actionHistoryRepo;
     private final deviceRepository deviceRepo;
+    private final MqttConfig.MqttGateway mqttGateway;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private LocalDateTime lastReconnectSyncAt;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(String payload, @Header("mqtt_receivedTopic") String topic) {
@@ -40,6 +45,9 @@ public class MqttSubscriber {
                 // Parse JSON gộp từ ESP32
                 JsonNode json = objectMapper.readTree(payload);
                 LocalDateTime now = LocalDateTime.now();
+
+                // Dùng sensor/data như heartbeat để đảm bảo ESP reconnect sẽ được đồng bộ trạng thái từ DB.
+                syncDeviceStatesFromDbIfNeeded("sensor-data-heartbeat");
 
                 // Chẻ dữ liệu và lưu vào DB (Khớp với các ID Sensor: 1-Nhiệt độ, 2-Độ ẩm, 3-Ánh sáng)
                 if (json.has("temperature")) {
@@ -63,6 +71,10 @@ public class MqttSubscriber {
 
             //  XỬ LÝ PHẢN HỒI THIẾT BỊ
             else if ("device/status".equals(topic)) {
+                if (isReconnectSignal(payload)) {
+                    syncDeviceStatesFromDbIfNeeded("device-status-online");
+                }
+
                 // Giả định payload từ ESP32 gửi về là: "do on success"
                 String[] parts = payload.split(" ");
                 if (parts.length >= 3) {
@@ -97,6 +109,42 @@ public class MqttSubscriber {
         ds.setSensor(s);
 
         dataSensorRepo.save(ds);
+    }
+
+    private boolean isReconnectSignal(String payload) {
+        String normalized = payload == null
+                ? ""
+                : payload.trim().toLowerCase(Locale.ROOT);
+
+        return normalized.equals("online")
+                || normalized.equals("reconnect")
+                || normalized.equals("boot")
+                || normalized.equals("device online")
+                || normalized.equals("esp32 online");
+    }
+
+    private void syncDeviceStatesFromDbIfNeeded(String reason) {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (lastReconnectSyncAt != null
+                && lastReconnectSyncAt.plusSeconds(RECONNECT_SYNC_DEBOUNCE_SECONDS).isAfter(now)) {
+            return;
+        }
+
+        lastReconnectSyncAt = now;
+
+        deviceRepo.findAll().forEach(device -> {
+            String action = actionHistoryRepo
+                    .findTopByDeviceAndStatusOrderByIdDesc(device, "SUCCESS")
+                    .map(history -> history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT))
+                    .filter(savedAction -> "on".equals(savedAction) || "off".equals(savedAction))
+                    .orElse("off");
+
+            String led = device.getNameDevice();
+            mqttGateway.sendToMqtt(led + " " + action, "device/control");
+        });
+
+        System.out.println("[MQTT] Synced device states from DB to ESP. reason=" + reason);
     }
 
     private double convertLightRawToLux(double rawValue) {

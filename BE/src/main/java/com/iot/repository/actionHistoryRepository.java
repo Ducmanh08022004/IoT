@@ -18,4 +18,5 @@ public interface actionHistoryRepository extends JpaRepository<ActionHistory, Lo
     @EntityGraph(attributePaths = {"device"})
     Page<ActionHistory> findAll(Specification<ActionHistory> spec, Pageable pageable);
     Optional<ActionHistory> findTopByDeviceOrderByIdDesc(Device device);
+    Optional<ActionHistory> findTopByDeviceAndStatusOrderByIdDesc(Device device, String status);
 }

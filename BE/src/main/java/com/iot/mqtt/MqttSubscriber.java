@@ -41,11 +41,11 @@ public class MqttSubscriber {
                     saveSensorToDb(json.get("humidity").asDouble(), 2L, now);
                 }
                 if (json.has("light")) {
-                    saveSensorToDb(json.get("light").asDouble(), 3L, now);
+                    saveSensorToDb(json.get("light").asDouble(), 3L, now); // Lưu cả giá trị raw ánh sáng vào DB
                 }
 
                 // Đẩy dữ liệu JSON gộp lên Dashboard qua WebSocket
-                messagingTemplate.convertAndSend("/topic/sensor", payload);
+                messagingTemplate.convertAndSend("/topic/sensor", json.toString());
             }
 
             //  XỬ LÝ PHẢN HỒI THIẾT BỊ

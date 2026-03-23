@@ -12,11 +12,19 @@ import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class MqttSubscriber {
+
+    private static final int ADC_MAX = 4095;
+    private static final double LIGHT_VREF = 3.3;
+    private static final double LIGHT_K = 12518931.0;
+    private static final double LIGHT_R = 10000.0;
+    private static final double LIGHT_GAMMA = 1.405;
+    private static final double LIGHT_MAX_LUX = 100000.0;
 
     private final dataSensorRepository dataSensorRepo;
     private final actionHistoryRepository actionHistoryRepo;
@@ -41,7 +49,12 @@ public class MqttSubscriber {
                     saveSensorToDb(json.get("humidity").asDouble(), 2L, now);
                 }
                 if (json.has("light")) {
-                    saveSensorToDb(json.get("light").asDouble(), 3L, now); // Lưu cả giá trị raw ánh sáng vào DB
+                    double lightLux = convertLightRawToLux(json.get("light").asDouble());
+                    saveSensorToDb(lightLux, 3L, now);
+
+                    if (json.isObject()) {
+                        ((com.fasterxml.jackson.databind.node.ObjectNode) json).put("light", lightLux);
+                    }
                 }
 
                 // Đẩy dữ liệu JSON gộp lên Dashboard qua WebSocket
@@ -84,5 +97,30 @@ public class MqttSubscriber {
         ds.setSensor(s);
 
         dataSensorRepo.save(ds);
+    }
+
+    private double convertLightRawToLux(double rawValue) {
+        if (!Double.isFinite(rawValue) || rawValue <= 0) {
+            return 0;
+        }
+
+        if (rawValue > ADC_MAX) {
+            return Math.round(rawValue);
+        }
+
+        double adc = rawValue <= LIGHT_VREF
+                ? (rawValue / LIGHT_VREF) * ADC_MAX
+                : rawValue;
+
+        adc = Math.max(1, Math.min(ADC_MAX, Math.round(adc)));
+        double inside = LIGHT_R * ((ADC_MAX / adc) - 1);
+
+        if (!Double.isFinite(inside) || inside <= 0) {
+            return Math.round(LIGHT_MAX_LUX);
+        }
+
+        double lux = LIGHT_K * Math.pow(inside, -LIGHT_GAMMA);
+        double boundedLux = Math.max(0, Math.min(LIGHT_MAX_LUX, lux));
+        return Math.round(boundedLux);
     }
 }

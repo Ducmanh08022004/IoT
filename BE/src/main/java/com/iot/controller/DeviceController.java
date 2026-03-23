@@ -19,8 +19,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class DeviceController {
 
-    private static final long DEVICE_ACK_TIMEOUT_SECONDS = 5;
-
     private final MqttConfig.MqttGateway mqttGateway;
     private final actionHistoryRepository actionHistoryRepo;
     private final deviceRepository deviceRepo;
@@ -38,7 +36,7 @@ public class DeviceController {
         history.setDateTime(LocalDateTime.now());
         actionHistoryRepo.save(history);
 
-        actionHistoryTimeoutService.schedulePendingToFailed(history.getId(), DEVICE_ACK_TIMEOUT_SECONDS);
+        actionHistoryTimeoutService.schedulePendingToFailed(history.getId(), 5);
 
         String payload = led + " " + action;
         mqttGateway.sendToMqtt(payload, "device/control");

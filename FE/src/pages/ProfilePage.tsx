@@ -24,7 +24,7 @@ function LinkField({
   return (
     <div className="link-field">
       <span>{label}</span>
-      <a href={value} target="_blank" rel="noreferrer">
+      <a href={value} target="_blank" rel="noreferrer" className="link-button">
         {displayText ?? value}
         <ExternalLink size={15} />
       </a>
@@ -70,12 +70,12 @@ export function ProfilePage() {
         <article className="panel info-card">
           <h2>Link Project</h2>
           <div className="links-grid">
-            <LinkField label="Github" value={profileData.github} />
-            <LinkField label="Figma" value={profileData.figma} />
+            <LinkField label="Github" value={profileData.github} displayText="Open GitHub" />
+            <LinkField label="Figma" value={profileData.figma} displayText="Open Figma" />
             <LinkField
               label="API Docs"
               value="https://documenter.getpostman.com/view/44055904/2sBXigMtdv"
-              displayText="Postman Documentation"
+              displayText="Open API Docs"
             />
             <div className="link-field">
               <span>PDF</span>

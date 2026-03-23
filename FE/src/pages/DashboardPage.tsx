@@ -26,6 +26,15 @@ type LightPoint = {
 
 type MetricKey = 'temperature' | 'humidity' | 'light';
 type GradientStop = { at: number; color: string };
+type ControlStatus = 'SUCCESS' | 'FAILED';
+type ControlNotice = {
+  id: number;
+  device: DeviceKey;
+  action: DeviceAction;
+  status: ControlStatus;
+  reason: string;
+  time: string;
+};
 
 const TEMP_THRESHOLDS = { low: 20, mid: 30, high: 40 } as const;
 const HUMIDITY_THRESHOLDS = { low: 40, mid: 60, high: 80 } as const;
@@ -56,6 +65,7 @@ const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | nul
 };
 
 const DEVICE_ACK_TIMEOUT_MS = 5000;
+const CONTROL_NOTICE_TIMEOUT_MS = 2000;
 const TEMP_MOCK_BANDS: Array<[number, number]> = [[18, 21.5], [22, 29.5], [30, 35.5], [36, 42]];
 const HUMIDITY_MOCK_BANDS: Array<[number, number]> = [[20, 39], [40, 59], [60, 79], [80, 95]];
 const LIGHT_MOCK_BANDS: Array<[number, number]> = [[20, 95], [100, 380], [400, 1450], [1500, 2950], [3000, 12000]];
@@ -196,6 +206,10 @@ function toNowLabel(): string {
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
+function nowTimeLabel(): string {
+  return new Date().toLocaleTimeString('vi-VN', { hour12: false });
+}
+
 function pickBandValue(bands: Array<[number, number]>, cycleIndex: number): number {
   const [min, max] = bands[cycleIndex % bands.length];
   return min + Math.random() * (max - min);
@@ -237,6 +251,7 @@ export function DashboardPage() {
     light_bulb: false,
   });
   const [isWsConnected, setIsWsConnected] = useState(false);
+  const [controlNotice, setControlNotice] = useState<ControlNotice | null>(null);
   const [liveMetric, setLiveMetric] = useState<Record<MetricKey, boolean>>({
     temperature: false,
     humidity: false,
@@ -248,6 +263,24 @@ export function DashboardPage() {
   const liveMetricTimeoutRef = useRef<Partial<Record<MetricKey, number>>>({});
   const mockTickRef = useRef<number | null>(null);
   const mockCycleRef = useRef(0);
+  const controlNoticeTimeoutRef = useRef<number | null>(null);
+
+  const pushControlNotice = useCallback((notice: Omit<ControlNotice, 'id' | 'time'>) => {
+    if (controlNoticeTimeoutRef.current !== null) {
+      window.clearTimeout(controlNoticeTimeoutRef.current);
+    }
+
+    setControlNotice({
+      ...notice,
+      id: Date.now(),
+      time: nowTimeLabel(),
+    });
+
+    controlNoticeTimeoutRef.current = window.setTimeout(() => {
+      setControlNotice(null);
+      controlNoticeTimeoutRef.current = null;
+    }, CONTROL_NOTICE_TIMEOUT_MS);
+  }, []);
 
   const pulseMetric = useCallback((metric: MetricKey) => {
     const timeoutId = liveMetricTimeoutRef.current[metric];
@@ -390,6 +423,13 @@ export function DashboardPage() {
             ...previous,
             [deviceName]: false,
           }));
+
+          pushControlNotice({
+            device: deviceName,
+            action,
+            status: isFailedStatus ? 'FAILED' : 'SUCCESS',
+            reason: typeof status === 'string' && status.trim() ? status.toUpperCase() : 'ACK',
+          });
         },
       });
     } catch {
@@ -414,8 +454,12 @@ export function DashboardPage() {
         }
       });
       liveMetricTimeoutRef.current = {};
+      if (controlNoticeTimeoutRef.current !== null) {
+        window.clearTimeout(controlNoticeTimeoutRef.current);
+        controlNoticeTimeoutRef.current = null;
+      }
     };
-  }, []);
+  }, [pushControlNotice]);
 
   const temperatureColor = temperatureIconColor(latestValues.temperature);
   const humidityColor = humidityIconColor(latestValues.humidity);
@@ -518,6 +562,7 @@ export function DashboardPage() {
 
     ackTimeoutRef.current[device] = window.setTimeout(() => {
       const fallbackState = pendingPreviousStateRef.current[device] ?? previousState;
+      const intendedAction = pendingActionRef.current[device] ?? nextAction;
 
       setPending((previous) => ({
         ...previous,
@@ -532,6 +577,13 @@ export function DashboardPage() {
       delete ackTimeoutRef.current[device];
       delete pendingActionRef.current[device];
       delete pendingPreviousStateRef.current[device];
+
+      pushControlNotice({
+        device,
+        action: intendedAction,
+        status: 'FAILED',
+        reason: 'TIMEOUT',
+      });
     }, DEVICE_ACK_TIMEOUT_MS);
 
     try {
@@ -549,6 +601,22 @@ export function DashboardPage() {
           ? 'Mock Mode: Simulating realtime sensor stream'
           : `WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
       />
+
+      {controlNotice ? (
+        <div
+          className={
+            controlNotice.status === 'SUCCESS'
+              ? 'control-toast control-toast--success'
+              : 'control-toast control-toast--failed'
+          }
+        >
+          <strong>{controlNotice.status}</strong>
+          <span>
+            {DEVICE_LABELS[controlNotice.device]} {controlNotice.action.toUpperCase()} ({controlNotice.reason})
+          </span>
+          <em>{controlNotice.time}</em>
+        </div>
+      ) : null}
 
       <div className="stats-grid">
         <StatCard

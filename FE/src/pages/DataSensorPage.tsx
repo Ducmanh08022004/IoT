@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
+import { CustomSelect } from '../components/CustomSelect';
 import { DataTable } from '../components/DataTable';
 import { PageHeader } from '../components/PageHeader';
 import { searchDataSensor } from '../services/iotApi';
 import { SensorRecord, SortDirection } from '../types/iot';
 
 type DataSensorFindBy = 'nameSensor' | 'value' | 'dateTime';
+type SensorValueUnit = 'temperature' | 'humidity' | 'light';
 
 const DATA_SENSOR_FIND_BY_OPTIONS: Array<{ value: DataSensorFindBy; label: string }> = [
   { value: 'nameSensor', label: 'Sensor Name' },
@@ -22,6 +24,18 @@ const DATA_SENSOR_SORT_BY_OPTIONS: Array<{ value: DataSensorSortBy; label: strin
 ];
 
 const PAGE_SIZE_OPTIONS = [5, 10];
+
+const SENSOR_VALUE_UNIT_OPTIONS: Array<{ value: SensorValueUnit; label: string }> = [
+  { value: 'temperature', label: 'Temperature (°C)' },
+  { value: 'humidity', label: 'Humidity (%)' },
+  { value: 'light', label: 'Light (Lux)' },
+];
+
+const SENSOR_NAME_BY_UNIT: Record<SensorValueUnit, string> = {
+  temperature: 'lm35',
+  humidity: 'dht22',
+  light: 'g100',
+};
 
 function normalizeDateTimeQuery(value: string): string | null {
   const trimmed = value.trim();
@@ -90,6 +104,7 @@ export function DataSensorPage() {
   const [sortOrder, setSortOrder] = useState<SortDirection>('desc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [valueUnit, setValueUnit] = useState<SensorValueUnit>('temperature');
 
   const loadRows = useCallback(async (
     queryValue: string,
@@ -137,6 +152,7 @@ export function DataSensorPage() {
           return;
         }
         body.value = numeric;
+        body.nameSensor = SENSOR_NAME_BY_UNIT[valueUnit];
       }
 
       if (findByValue === 'dateTime') {
@@ -165,7 +181,7 @@ export function DataSensorPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [valueUnit]);
 
   useEffect(() => {
     void loadRows('', 'dateTime', 'desc', 'nameSensor', 0, pageSize);
@@ -189,6 +205,14 @@ export function DataSensorPage() {
     setPage(0);
     setFindBy(resolved);
     void loadRows(query, sortBy, sortOrder, resolved, 0, pageSize);
+  };
+
+  const handleValueUnitChange = (nextUnit: SensorValueUnit) => {
+    setPage(0);
+    setValueUnit(nextUnit);
+    if (findBy === 'value') {
+      void loadRows(query, sortBy, sortOrder, 'value', 0, pageSize);
+    }
   };
 
   const handlePageSizeChange = (nextSize: number) => {
@@ -218,8 +242,17 @@ export function DataSensorPage() {
         onFindByChange={handleFindByChange}
         query={query}
         onQueryChange={setQuery}
-        queryInputType="text"
-        queryPlaceholder={findBy === 'dateTime' ? 'YYYY-MM-DD HH:mm:ss' : 'Search'}
+        queryInputType={findBy === 'value' ? 'number' : 'text'}
+        queryStep={findBy === 'value' ? '0.1' : undefined}
+        queryPlaceholder={findBy === 'dateTime' ? 'YYYY-MM-DD HH:mm:ss' : findBy === 'value' ? 'Exact numeric value' : 'Search'}
+        searchAddon={findBy === 'value' ? (
+          <CustomSelect
+            value={valueUnit}
+            options={SENSOR_VALUE_UNIT_OPTIONS}
+            onChange={handleValueUnitChange}
+            ariaLabel="Value unit"
+          />
+        ) : null}
         sortBy={sortBy}
         sortByOptions={DATA_SENSOR_SORT_BY_OPTIONS}
         onSortByChange={handleSortByChange}

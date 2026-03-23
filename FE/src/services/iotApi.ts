@@ -29,6 +29,7 @@ type ActionSearchBody = {
   status?: string;
   action?: string;
   date?: string;
+  dateTime?: string;
 };
 
 const DEVICE_LED_FALLBACK_MAP: Record<DeviceKey, string[]> = {
@@ -216,7 +217,8 @@ export async function searchActionHistory(
     nameDevice: body.nameDevice,
     status: body.status,
     action: body.action,
-    date: body.date,
+    date: body.dateTime ?? body.date,
+    dateTime: body.dateTime,
     page: options.page ?? 0,
     size: options.size ?? 10,
     sortBy: options.sortBy ?? 'dateTime',

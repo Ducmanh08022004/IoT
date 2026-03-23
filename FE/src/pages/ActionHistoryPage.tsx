@@ -4,13 +4,13 @@ import { PageHeader } from '../components/PageHeader';
 import { searchActionHistory } from '../services/iotApi';
 import { ActionHistoryRecord, SortDirection } from '../types/iot';
 
-type ActionHistoryFindBy = 'nameDevice' | 'action' | 'status' | 'date';
+type ActionHistoryFindBy = 'nameDevice' | 'action' | 'status' | 'dateTime';
 
 const ACTION_HISTORY_FIND_BY_OPTIONS: Array<{ value: ActionHistoryFindBy; label: string }> = [
   { value: 'nameDevice', label: 'Device Name' },
   { value: 'action', label: 'Action' },
   { value: 'status', label: 'Status' },
-  { value: 'date', label: 'Date' },
+  { value: 'dateTime', label: 'Date Time' },
 ];
 
 type ActionHistorySortBy = 'id' | 'device.nameDevice' | 'action' | 'status' | 'dateTime';
@@ -48,6 +48,24 @@ function toActionClass(value: string): string {
     return 'chip chip--warning';
   }
   return 'chip chip--neutral';
+}
+
+function normalizeDateTimeQuery(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed.replace('T', ' ');
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}$/.test(trimmed)) {
+    return `${trimmed.replace('T', ' ')}:00`;
+  }
+
+  return null;
 }
 
 export function ActionHistoryPage() {
@@ -92,7 +110,7 @@ export function ActionHistoryPage() {
         return;
       }
 
-      const body: { nameDevice?: string; action?: string; status?: string; date?: string } = {};
+      const body: { nameDevice?: string; action?: string; status?: string; dateTime?: string } = {};
 
       if (findByValue === 'nameDevice') {
         body.nameDevice = trimmedQuery;
@@ -106,8 +124,16 @@ export function ActionHistoryPage() {
         body.status = trimmedQuery;
       }
 
-      if (findByValue === 'date') {
-        body.date = trimmedQuery;
+      if (findByValue === 'dateTime') {
+        const normalizedDateTime = normalizeDateTimeQuery(trimmedQuery);
+        if (!normalizedDateTime) {
+          setRows([]);
+          setTotalRows(0);
+          setError('Vui lòng nhập thời gian dạng yyyy-MM-ddTHH:mm:ss hoặc yyyy-MM-dd HH:mm:ss');
+          setLoading(false);
+          return;
+        }
+        body.dateTime = normalizedDateTime;
       }
 
       const result = await searchActionHistory(
@@ -180,6 +206,8 @@ export function ActionHistoryPage() {
         onFindByChange={handleFindByChange}
         query={query}
         onQueryChange={setQuery}
+        queryInputType="text"
+        queryPlaceholder={findBy === 'dateTime' ? 'YYYY-MM-DD HH:mm:ss' : 'Search'}
         sortBy={sortBy}
         sortByOptions={ACTION_HISTORY_SORT_BY_OPTIONS}
         onSortByChange={handleSortByChange}

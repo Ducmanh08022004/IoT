@@ -16,6 +16,9 @@ type DataTableProps<T extends { id: number }> = {
   columns: Column<T>[];
   rows: T[];
   query: string;
+  queryInputType?: React.HTMLInputTypeAttribute;
+  queryPlaceholder?: string;
+  queryStep?: number | string;
   findBy: string;
   findByOptions: FindByOption[];
   onFindByChange: (value: string) => void;
@@ -41,6 +44,9 @@ export function DataTable<T extends { id: number }>({
   columns,
   rows,
   query,
+  queryInputType = 'text',
+  queryPlaceholder = 'Search',
+  queryStep,
   findBy,
   findByOptions,
   onFindByChange,
@@ -98,6 +104,8 @@ export function DataTable<T extends { id: number }>({
           <label className="input-wrap">
             <Search size={18} />
             <input
+              type={queryInputType}
+              step={queryStep}
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               onKeyDown={(event) => {
@@ -105,7 +113,7 @@ export function DataTable<T extends { id: number }>({
                   onSearch();
                 }
               }}
-              placeholder="Search"
+              placeholder={queryPlaceholder}
             />
           </label>
 

@@ -4,7 +4,6 @@ import com.iot.entity.ActionHistory;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +14,7 @@ public class ActionHistorySpecification {
             String nameDevice,
             String action,
             String status,
-            LocalDate date
+            LocalDateTime dateTime
     ) {
 
         return (Root<ActionHistory> root,
@@ -46,9 +45,9 @@ public class ActionHistorySpecification {
                 );
             }
 
-            if (date != null) {
-                LocalDateTime start = date.atStartOfDay();
-                LocalDateTime endExclusive = date.plusDays(1).atStartOfDay();
+            if (dateTime != null) {
+                LocalDateTime start = dateTime;
+                LocalDateTime endExclusive = dateTime.plusSeconds(1);
 
                 predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
                 predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));

@@ -2,7 +2,7 @@ package com.iot.dto;
 
 import lombok.*;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -12,5 +12,5 @@ public class actionHistoryFilterRequest {
     private String nameDevice;
     private String status;
     private String action;
-    private LocalDate date;
+    private LocalDateTime dateTime;
 }

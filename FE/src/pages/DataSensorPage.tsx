@@ -23,6 +23,24 @@ const DATA_SENSOR_SORT_BY_OPTIONS: Array<{ value: DataSensorSortBy; label: strin
 
 const PAGE_SIZE_OPTIONS = [5, 10];
 
+function normalizeDateTimeQuery(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+    return trimmed.replace('T', ' ');
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}$/.test(trimmed)) {
+    return `${trimmed.replace('T', ' ')}:00`;
+  }
+
+  return null;
+}
+
 function toSensorValueClass(sensorName: string, value: string): string {
   const sensor = sensorName.trim().toLowerCase();
   const numeric = Number(value);
@@ -122,7 +140,15 @@ export function DataSensorPage() {
       }
 
       if (findByValue === 'dateTime') {
-        body.dateTime = trimmedQuery;
+        const normalizedDateTime = normalizeDateTimeQuery(trimmedQuery);
+        if (!normalizedDateTime) {
+          setRows([]);
+          setTotalRows(0);
+          setError('Vui lòng nhập thời gian dạng yyyy-MM-ddTHH:mm:ss hoặc yyyy-MM-dd HH:mm:ss');
+          setLoading(false);
+          return;
+        }
+        body.dateTime = normalizedDateTime;
       }
 
       const result = await searchDataSensor(body, {
@@ -192,6 +218,8 @@ export function DataSensorPage() {
         onFindByChange={handleFindByChange}
         query={query}
         onQueryChange={setQuery}
+        queryInputType="text"
+        queryPlaceholder={findBy === 'dateTime' ? 'YYYY-MM-DD HH:mm:ss' : 'Search'}
         sortBy={sortBy}
         sortByOptions={DATA_SENSOR_SORT_BY_OPTIONS}
         onSortByChange={handleSortByChange}

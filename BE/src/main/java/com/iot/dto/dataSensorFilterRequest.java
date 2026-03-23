@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -13,5 +13,5 @@ import java.time.LocalDate;
 public class dataSensorFilterRequest {
     private String nameSensor;
     private Double value;
-    private LocalDate dateTime;
+    private LocalDateTime dateTime;
 }

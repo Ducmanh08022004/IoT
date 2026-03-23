@@ -4,7 +4,6 @@ import com.iot.entity.DataSensor;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +13,7 @@ public class DataSensorSpecification {
     public static Specification<DataSensor> filter(
             String nameSensor,
             Double value,
-            LocalDate date
+            LocalDateTime dateTime
     ) {
 
         return (Root<DataSensor> root,
@@ -39,9 +38,9 @@ public class DataSensorSpecification {
                 );
             }
 
-            if (date != null) {
-                LocalDateTime start = date.atStartOfDay();
-                LocalDateTime endExclusive = date.plusDays(1).atStartOfDay();
+            if (dateTime != null) {
+                LocalDateTime start = dateTime;
+                LocalDateTime endExclusive = dateTime.plusSeconds(1);
 
                 predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
                 predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));

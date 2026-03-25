@@ -53,7 +53,8 @@ public class DataSensorService {
                 DataSensorSpecification.filter(
                         safeRequest.getNameSensor(),
                         safeRequest.getValue(),
-                        safeRequest.getDateTime()
+                        safeRequest.getDateTime(),
+                        safeRequest.getSensorId()
                 ),
                 pageable
         );

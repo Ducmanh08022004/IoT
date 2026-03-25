@@ -13,7 +13,8 @@ public class DataSensorSpecification {
     public static Specification<DataSensor> filter(
             String nameSensor,
             Double value,
-            LocalDateTime dateTime
+            LocalDateTime dateTime,
+            Long sensorId
     ) {
 
         return (Root<DataSensor> root,
@@ -33,9 +34,15 @@ public class DataSensorSpecification {
             }
 
             if (value != null && !value.isNaN()) {
+                // Use a tiny range instead of strict equals to avoid double precision misses.
+                double epsilon = 0.0001d;
                 predicates.add(
-                        cb.equal(root.get("value"), value)
+                        cb.between(root.get("value"), value - epsilon, value + epsilon)
                 );
+            }
+
+            if (sensorId != null && sensorId > 0) {
+                predicates.add(cb.equal(root.get("sensor").get("idSensor"), sensorId));
             }
 
             if (dateTime != null) {

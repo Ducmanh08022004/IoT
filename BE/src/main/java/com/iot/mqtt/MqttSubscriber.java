@@ -36,6 +36,7 @@ public class MqttSubscriber {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private LocalDateTime lastReconnectSyncAt;
+    private boolean heartbeatInitialSyncDone;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(String payload, @Header("mqtt_receivedTopic") String topic) {
@@ -46,8 +47,12 @@ public class MqttSubscriber {
                 JsonNode json = objectMapper.readTree(payload);
                 LocalDateTime now = LocalDateTime.now();
 
-                // Dùng sensor/data như heartbeat để đảm bảo ESP reconnect sẽ được đồng bộ trạng thái từ DB.
-                syncDeviceStatesFromDbIfNeeded("sensor-data-heartbeat");
+                // Chỉ sync 1 lần từ heartbeat (lúc backend khởi động). Các lần reconnect thực tế
+                // sẽ được xử lý qua topic device/status với tín hiệu online/reconnect.
+                if (!heartbeatInitialSyncDone) {
+                    syncDeviceStatesFromDbIfNeeded("sensor-data-heartbeat");
+                    heartbeatInitialSyncDone = true;
+                }
 
                 // Chẻ dữ liệu và lưu vào DB (Khớp với các ID Sensor: 1-Nhiệt độ, 2-Độ ẩm, 3-Ánh sáng)
                 if (json.has("temperature")) {

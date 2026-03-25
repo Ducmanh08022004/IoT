@@ -25,6 +25,7 @@ public class DataSensorController {
             @RequestParam(required = false) String nameSensor,
             @RequestParam(required = false) Double value,
             @RequestParam(required = false) String dateTime,
+            @RequestParam(required = false) Long sensorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "dateTime") String sortBy,
@@ -32,7 +33,7 @@ public class DataSensorController {
             )
     {
         LocalDateTime parsedDateTime = parseDateTimeParam(dateTime);
-        dataSensorFilterRequest request = new dataSensorFilterRequest(nameSensor, value, parsedDateTime);
+        dataSensorFilterRequest request = new dataSensorFilterRequest(nameSensor, value, parsedDateTime, sensorId);
         return dataSensorService.search(request,page,size,sortBy,direction);
     }
 

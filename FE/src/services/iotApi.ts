@@ -21,6 +21,7 @@ type UnknownApiPayload = Record<string, unknown>;
 type SensorSearchBody = {
   nameSensor?: string;
   value?: number;
+  sensorId?: number;
   dateTime?: string;
 };
 
@@ -195,6 +196,7 @@ export async function searchDataSensor(
   const response = await getJson<unknown>('/api/data-sensor/search', {
     nameSensor: body.nameSensor,
     value: body.value,
+    sensorId: body.sensorId,
     dateTime: body.dateTime,
     page: options.page ?? 0,
     size: options.size ?? 10,

@@ -14,4 +14,5 @@ public class dataSensorFilterRequest {
     private String nameSensor;
     private Double value;
     private LocalDateTime dateTime;
+    private Long sensorId;
 }

@@ -31,10 +31,10 @@ const SENSOR_VALUE_UNIT_OPTIONS: Array<{ value: SensorValueUnit; label: string }
   { value: 'light', label: 'Light (Lux)' },
 ];
 
-const SENSOR_NAME_BY_UNIT: Record<SensorValueUnit, string> = {
-  temperature: 'lm35',
-  humidity: 'dht22',
-  light: 'g100',
+const SENSOR_ID_BY_UNIT: Record<SensorValueUnit, number> = {
+  temperature: 1,
+  humidity: 2,
+  light: 3,
 };
 
 function normalizeDateTimeQuery(value: string): string | null {
@@ -136,7 +136,7 @@ export function DataSensorPage() {
         return;
       }
 
-      const body: { nameSensor?: string; value?: number; dateTime?: string } = {};
+      const body: { nameSensor?: string; value?: number; sensorId?: number; dateTime?: string } = {};
 
       if (findByValue === 'nameSensor') {
         body.nameSensor = trimmedQuery;
@@ -152,7 +152,7 @@ export function DataSensorPage() {
           return;
         }
         body.value = numeric;
-        body.nameSensor = SENSOR_NAME_BY_UNIT[valueUnit];
+        body.sensorId = SENSOR_ID_BY_UNIT[valueUnit];
       }
 
       if (findByValue === 'dateTime') {

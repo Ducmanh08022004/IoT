@@ -7,9 +7,6 @@ import { ActionHistoryRecord, SortDirection } from '../types/iot';
 type ActionHistoryFindBy = 'nameDevice' | 'action' | 'status' | 'dateTime';
 
 const ACTION_HISTORY_FIND_BY_OPTIONS: Array<{ value: ActionHistoryFindBy; label: string }> = [
-  { value: 'nameDevice', label: 'Device Name' },
-  { value: 'action', label: 'Action' },
-  { value: 'status', label: 'Status' },
   { value: 'dateTime', label: 'Date Time' },
 ];
 
@@ -20,7 +17,6 @@ const ACTION_HISTORY_SORT_BY_OPTIONS: Array<{ value: ActionHistorySortBy; label:
   { value: 'device.nameDevice', label: 'Device Name' },
   { value: 'action', label: 'Action' },
   { value: 'status', label: 'Status' },
-  { value: 'dateTime', label: 'Time' },
 ];
 
 const PAGE_SIZE_OPTIONS = [5, 10];

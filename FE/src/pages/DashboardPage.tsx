@@ -6,7 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/StatCard';
 import { IOT_CONFIG } from '../config/iot';
 import { dashboardSeries, lightSeries } from '../data/mockData';
-import { controlDevice, searchDataSensor } from '../services/iotApi';
+import { controlDevice, searchActionHistory, searchDataSensor } from '../services/iotApi';
 import { connectIotRealtime } from '../services/iotRealtime';
 import { DeviceAction, DeviceKey } from '../types/iot';
 
@@ -45,6 +45,28 @@ const DEVICE_LABELS: Record<DeviceKey, string> = {
   air_condition: 'Air Conditioner',
   light_bulb: 'Light Bulb',
 };
+
+const DEFAULT_DEVICE_STATE: DeviceState = {
+  fan: false,
+  air_condition: false,
+  light_bulb: false,
+};
+
+function normalizeDeviceName(deviceName: string): DeviceKey | null {
+  const normalized = deviceName.trim().toLowerCase().replace(/[-\s]+/g, '_');
+  const aliases: Record<string, DeviceKey> = {
+    fan: 'fan',
+    vang: 'fan',
+    air_condition: 'air_condition',
+    aircondition: 'air_condition',
+    xanh: 'air_condition',
+    light_bulb: 'light_bulb',
+    lightbulb: 'light_bulb',
+    do: 'light_bulb',
+  };
+
+  return aliases[normalized] ?? null;
+}
 
 const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | null> = {
   temperature: 'temperature',
@@ -240,16 +262,8 @@ export function DashboardPage() {
   const [tempHumidityData, setTempHumidityData] = useState<TempHumidityPoint[]>(dashboardSeries);
   const [lightData, setLightData] = useState<LightPoint[]>(lightSeries);
   const [latestValues, setLatestValues] = useState({ temperature: 35, humidity: 54, light: 400 });
-  const [deviceState, setDeviceState] = useState<DeviceState>({
-    fan: false,
-    air_condition: false,
-    light_bulb: false,
-  });
-  const [pending, setPending] = useState<PendingState>({
-    fan: false,
-    air_condition: false,
-    light_bulb: false,
-  });
+  const [deviceState, setDeviceState] = useState<DeviceState>(DEFAULT_DEVICE_STATE);
+  const [pending, setPending] = useState<PendingState>(DEFAULT_DEVICE_STATE);
   const [isWsConnected, setIsWsConnected] = useState(false);
   const [controlNotice, setControlNotice] = useState<ControlNotice | null>(null);
   const [liveMetric, setLiveMetric] = useState<Record<MetricKey, boolean>>({
@@ -301,6 +315,45 @@ export function DashboardPage() {
       delete liveMetricTimeoutRef.current[metric];
     }, 900);
   }, []);
+
+  const clearDeviceControlTracking = useCallback(() => {
+    (Object.keys(ackTimeoutRef.current) as DeviceKey[]).forEach((deviceName) => {
+      const timeoutId = ackTimeoutRef.current[deviceName];
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    });
+
+    ackTimeoutRef.current = {};
+    pendingActionRef.current = {};
+    pendingPreviousStateRef.current = {};
+    setPending(DEFAULT_DEVICE_STATE);
+  }, []);
+
+  const refreshDeviceStateFromApi = useCallback(async () => {
+    try {
+      const result = await searchActionHistory({}, { page: 0, size: 50, sortBy: 'dateTime', direction: 'desc' });
+      const nextState: DeviceState = { ...DEFAULT_DEVICE_STATE };
+      const resolvedDevices = new Set<DeviceKey>();
+
+      for (const row of result.rows) {
+        const deviceName = normalizeDeviceName(row.deviceName);
+        if (!deviceName || resolvedDevices.has(deviceName)) {
+          continue;
+        }
+
+        if (row.status === 'SUCCESS') {
+          nextState[deviceName] = row.action === 'ON';
+          resolvedDevices.add(deviceName);
+        }
+      }
+
+      clearDeviceControlTracking();
+      setDeviceState(nextState);
+    } catch {
+      clearDeviceControlTracking();
+    }
+  }, [clearDeviceControlTracking]);
 
   const refreshFromApi = useCallback(async () => {
     try {
@@ -374,6 +427,9 @@ export function DashboardPage() {
 
       disconnect = connectIotRealtime({
         onConnectionChange: setIsWsConnected,
+        onReconnect: () => {
+          void refreshDeviceStateFromApi();
+        },
         onSensor: ({ sensorName, value, time }) => {
           const normalized = normalizeSensorName(sensorName);
           const timeLabel = toTimeLabel(time);
@@ -484,12 +540,13 @@ export function DashboardPage() {
 
     const timer = window.setInterval(() => {
       void refreshFromApi();
+      void refreshDeviceStateFromApi();
     }, 2000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [isWsConnected, refreshFromApi]);
+  }, [isWsConnected, refreshDeviceStateFromApi, refreshFromApi]);
 
   useEffect(() => {
     if (!IOT_CONFIG.useMockSensorData) {

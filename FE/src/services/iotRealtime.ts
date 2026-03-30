@@ -7,6 +7,7 @@ type RealtimeHandlers = {
   onSensor: (message: SensorRealtimeMessage) => void;
   onDeviceStatus: (message: DeviceRealtimeMessage) => void;
   onConnectionChange?: (connected: boolean) => void;
+  onReconnect?: () => void;
 };
 
 type UnknownPayload = Record<string, unknown>;
@@ -287,6 +288,30 @@ function parseDeviceMessage(payload: unknown): DeviceRealtimeMessage | null {
   return null;
 }
 
+function isReconnectSignal(payload: unknown): boolean {
+  const message = (() => {
+    if (typeof payload === 'string') {
+      return payload;
+    }
+
+    if (typeof payload === 'object' && payload !== null && 'message' in payload) {
+      const candidate = (payload as UnknownPayload).message;
+      if (typeof candidate === 'string') {
+        return candidate;
+      }
+    }
+
+    return '';
+  })();
+
+  const normalized = message.trim().toLowerCase();
+  return normalized === 'online'
+    || normalized === 'reconnect'
+    || normalized === 'boot'
+    || normalized === 'device online'
+    || normalized === 'esp32 online';
+}
+
 export function connectIotRealtime(handlers: RealtimeHandlers): () => void {
   const sockJsHttpUrl = toWsHttpUrl(IOT_CONFIG.wsUrl);
   const subscriptions = [
@@ -316,6 +341,11 @@ export function connectIotRealtime(handlers: RealtimeHandlers): () => void {
           if (destination.includes('sensor')) {
             const sensors = parseSensorMessage(payload);
             sensors.forEach((sensor) => handlers.onSensor(sensor));
+            return;
+          }
+
+          if (isReconnectSignal(payload)) {
+            handlers.onReconnect?.();
             return;
           }
 

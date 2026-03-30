@@ -43,12 +43,9 @@ public class MqttSubscriber {
         try {
             //XỬ LÝ DỮ LIỆU SENSOR
             if ("sensor/data".equals(topic)) {
-                // Parse JSON gộp từ ESP32
                 JsonNode json = objectMapper.readTree(payload);
                 LocalDateTime now = LocalDateTime.now();
 
-                // Chỉ sync 1 lần từ heartbeat (lúc backend khởi động). Các lần reconnect thực tế
-                // sẽ được xử lý qua topic device/status với tín hiệu online/reconnect.
                 if (!heartbeatInitialSyncDone) {
                     syncDeviceStatesFromDbIfNeeded("sensor-data-heartbeat");
                     heartbeatInitialSyncDone = true;
@@ -80,7 +77,7 @@ public class MqttSubscriber {
                     syncDeviceStatesFromDbIfNeeded("device-status-online");
                 }
 
-                // Giả định payload từ ESP32 gửi về là: "do on success"
+                //Payload từ ESP32 gửi về là: "do on success"
                 String[] parts = payload.split(" ");
                 if (parts.length >= 3) {
                     String ledName = parts[0];   // "do"

@@ -41,7 +41,6 @@ public class MqttSubscriber {
     private LocalDateTime lastReconnectSyncAt;
     private boolean heartbeatInitialSyncDone;
     private boolean warningLightActive;
-    private boolean warningLightBlinkOn;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(String payload, @Header("mqtt_receivedTopic") String topic) {
@@ -146,6 +145,11 @@ public class MqttSubscriber {
         lastReconnectSyncAt = now;
 
         deviceRepo.findAll().forEach(device -> {
+            String deviceName = device.getNameDevice() == null ? "" : device.getNameDevice().trim().toLowerCase(Locale.ROOT);
+            if ("warning_light".equals(deviceName)) {
+                return;
+            }
+
             String action = resolveActionForReconnect(device);
 
             String led = device.getNameDevice();
@@ -156,22 +160,6 @@ public class MqttSubscriber {
     }
 
     private String resolveActionForReconnect(Device device) {
-        String deviceName = device.getNameDevice() == null ? "" : device.getNameDevice().trim().toLowerCase(Locale.ROOT);
-
-        if ("warning_light".equals(deviceName)) {
-            return actionHistoryRepo.findTopByDeviceOrderByIdDesc(device)
-                    .map(history -> {
-                        String status = history.getStatus() == null ? "" : history.getStatus().trim().toLowerCase(Locale.ROOT);
-                        if ("warning".equals(status)) {
-                            return "on";
-                        }
-
-                        String action = history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT);
-                        return "on".equals(action) || "off".equals(action) ? action : "off";
-                    })
-                    .orElse("off");
-        }
-
         return actionHistoryRepo
                 .findTopByDeviceAndStatusOrderByIdDesc(device, "SUCCESS")
                 .map(history -> history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT))
@@ -184,19 +172,13 @@ public class MqttSubscriber {
             if (windSpeed > WIND_WARNING_THRESHOLD) {
                 if (!warningLightActive) {
                     warningLightActive = true;
-                    warningLightBlinkOn = true;
                     persistWarningLightWarning(device, now);
-                    return;
                 }
-
-                warningLightBlinkOn = !warningLightBlinkOn;
-                mqttGateway.sendToMqtt("warning_light " + (warningLightBlinkOn ? "on" : "off"), "device/control");
                 return;
             }
 
             if (warningLightActive) {
                 warningLightActive = false;
-                warningLightBlinkOn = false;
                 publishWarningLightOff();
             }
         });

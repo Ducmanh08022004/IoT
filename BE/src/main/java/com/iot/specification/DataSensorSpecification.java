@@ -13,7 +13,8 @@ public class DataSensorSpecification {
     public static Specification<DataSensor> filter(
             String nameSensor,
             Double value,
-            LocalDateTime dateTime,
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime,
             Long sensorId
     ) {
 
@@ -45,12 +46,9 @@ public class DataSensorSpecification {
                 predicates.add(cb.equal(root.get("sensor").get("idSensor"), sensorId));
             }
 
-            if (dateTime != null) {
-                LocalDateTime start = dateTime;
-                LocalDateTime endExclusive = dateTime.plusSeconds(1);
-
-                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
-                predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));
+            if (startDateTime != null && endDateTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), startDateTime));
+                predicates.add(cb.lessThan(root.get("dateTime"), endDateTime));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

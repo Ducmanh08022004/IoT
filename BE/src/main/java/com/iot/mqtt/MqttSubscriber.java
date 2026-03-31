@@ -3,7 +3,9 @@ package com.iot.mqtt;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iot.config.MqttConfig;
+import com.iot.entity.ActionHistory;
 import com.iot.entity.DataSensor;
+import com.iot.entity.Device;
 import com.iot.entity.Sensor;
 import com.iot.repository.actionHistoryRepository;
 import com.iot.repository.dataSensorRepository;
@@ -28,6 +30,7 @@ public class MqttSubscriber {
     private static final double LIGHT_GAMMA = 1.405;
     private static final double LIGHT_MAX_LUX = 100000.0;
     private static final int RECONNECT_SYNC_DEBOUNCE_SECONDS = 15;
+    private static final double WIND_WARNING_THRESHOLD = 60.0;
 
     private final dataSensorRepository dataSensorRepo;
     private final actionHistoryRepository actionHistoryRepo;
@@ -37,6 +40,8 @@ public class MqttSubscriber {
     private final ObjectMapper objectMapper;
     private LocalDateTime lastReconnectSyncAt;
     private boolean heartbeatInitialSyncDone;
+    private boolean warningLightActive;
+    private boolean warningLightBlinkOn;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(String payload, @Header("mqtt_receivedTopic") String topic) {
@@ -51,7 +56,7 @@ public class MqttSubscriber {
                     heartbeatInitialSyncDone = true;
                 }
 
-                // Chẻ dữ liệu và lưu vào DB (Khớp với các ID Sensor: 1-Nhiệt độ, 2-Độ ẩm, 3-Ánh sáng)
+                // Chẻ dữ liệu và lưu vào DB (Khớp với các ID Sensor: 1-Nhiệt độ, 2-Độ ẩm, 3-Ánh sáng, 4-Gió)
                 if (json.has("temperature")) {
                     saveSensorToDb(json.get("temperature").asDouble(), 1L, now);
                 }
@@ -67,6 +72,12 @@ public class MqttSubscriber {
                     }
                 }
 
+                if (json.has("windspeed")) {
+                    double windSpeed = json.get("windspeed").asDouble();
+                    saveSensorToDb(windSpeed, 4L, now);
+                    handleWindWarning(windSpeed, now);
+                }
+
                 // Đẩy dữ liệu JSON gộp lên Dashboard qua WebSocket
                 messagingTemplate.convertAndSend("/topic/sensor", json.toString());
             }
@@ -77,15 +88,14 @@ public class MqttSubscriber {
                     syncDeviceStatesFromDbIfNeeded("device-status-online");
                 }
 
-                //Payload từ ESP32 gửi về là: "do on success"
+    
                 String[] parts = payload.split(" ");
                 if (parts.length >= 3) {
-                    String ledName = parts[0];   // "do"
-                    String statusResult = parts[2]; // "success" hoặc "failed"
+                    String ledName = parts[0];  
+                    String statusResult = parts[2]; 
 
                     // 1. Tìm thiết bị theo tên ("do", "xanh", "vang")
                     deviceRepo.findByNameDevice(ledName).ifPresent(device -> {
-                        // 2. Tìm bản ghi hành động "Pending" mới nhất của thiết bị đó để cập nhật
                         actionHistoryRepo.findTopByDeviceOrderByIdDesc(device).ifPresent(history -> {
                             if ("Pending".equalsIgnoreCase(history.getStatus())) {
                                 history.setStatus(statusResult.toUpperCase()); // Thành SUCCESS hoặc FAILED
@@ -136,17 +146,77 @@ public class MqttSubscriber {
         lastReconnectSyncAt = now;
 
         deviceRepo.findAll().forEach(device -> {
-            String action = actionHistoryRepo
-                    .findTopByDeviceAndStatusOrderByIdDesc(device, "SUCCESS")
-                    .map(history -> history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT))
-                    .filter(savedAction -> "on".equals(savedAction) || "off".equals(savedAction))
-                    .orElse("off");
+            String action = resolveActionForReconnect(device);
 
             String led = device.getNameDevice();
             mqttGateway.sendToMqtt(led + " " + action, "device/control");
         });
 
         System.out.println("[MQTT] Synced device states from DB to ESP. reason=" + reason);
+    }
+
+    private String resolveActionForReconnect(Device device) {
+        String deviceName = device.getNameDevice() == null ? "" : device.getNameDevice().trim().toLowerCase(Locale.ROOT);
+
+        if ("warning_light".equals(deviceName)) {
+            return actionHistoryRepo.findTopByDeviceOrderByIdDesc(device)
+                    .map(history -> {
+                        String status = history.getStatus() == null ? "" : history.getStatus().trim().toLowerCase(Locale.ROOT);
+                        if ("warning".equals(status)) {
+                            return "on";
+                        }
+
+                        String action = history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT);
+                        return "on".equals(action) || "off".equals(action) ? action : "off";
+                    })
+                    .orElse("off");
+        }
+
+        return actionHistoryRepo
+                .findTopByDeviceAndStatusOrderByIdDesc(device, "SUCCESS")
+                .map(history -> history.getAction() == null ? "off" : history.getAction().toLowerCase(Locale.ROOT))
+                .filter(savedAction -> "on".equals(savedAction) || "off".equals(savedAction))
+                .orElse("off");
+    }
+
+    private void handleWindWarning(double windSpeed, LocalDateTime now) {
+        deviceRepo.findByNameDevice("warning_light").ifPresent(device -> {
+            if (windSpeed > WIND_WARNING_THRESHOLD) {
+                if (!warningLightActive) {
+                    warningLightActive = true;
+                    warningLightBlinkOn = true;
+                    persistWarningLightWarning(device, now);
+                    return;
+                }
+
+                warningLightBlinkOn = !warningLightBlinkOn;
+                mqttGateway.sendToMqtt("warning_light " + (warningLightBlinkOn ? "on" : "off"), "device/control");
+                return;
+            }
+
+            if (warningLightActive) {
+                warningLightActive = false;
+                warningLightBlinkOn = false;
+                publishWarningLightOff();
+            }
+        });
+    }
+
+    private void persistWarningLightWarning(Device device, LocalDateTime now) {
+        ActionHistory history = new ActionHistory();
+        history.setDevice(device);
+        history.setAction("WARNING");
+        history.setStatus("WARNING");
+        history.setDateTime(now);
+        actionHistoryRepo.save(history);
+
+        mqttGateway.sendToMqtt("warning_light on", "device/control");
+        messagingTemplate.convertAndSend("/topic/device-status", "warning_light on warning");
+    }
+
+    private void publishWarningLightOff() {
+        mqttGateway.sendToMqtt("warning_light off", "device/control");
+        messagingTemplate.convertAndSend("/topic/device-status", "warning_light off success");
     }
 
     private double convertLightRawToLux(double rawValue) {

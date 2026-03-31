@@ -1,8 +1,6 @@
 import { IOT_CONFIG } from '../config/iot';
 
-type QueryValue = string | number | boolean | undefined | null;
-
-function toQueryString(query?: Record<string, QueryValue>): string {
+function toQueryString(query) {
   if (!query) {
     return '';
   }
@@ -19,11 +17,7 @@ function toQueryString(query?: Record<string, QueryValue>): string {
   return serialized ? `?${serialized}` : '';
 }
 
-export async function postJson<TResponse>(
-  path: string,
-  body: unknown,
-  query?: Record<string, QueryValue>,
-): Promise<TResponse> {
+export async function postJson(path, body, query) {
   const response = await fetch(`${IOT_CONFIG.apiBaseUrl}${path}${toQueryString(query)}`, {
     method: 'POST',
     headers: {
@@ -37,25 +31,22 @@ export async function postJson<TResponse>(
   }
 
   if (response.status === 204) {
-    return undefined as TResponse;
+    return undefined;
   }
 
   const raw = await response.text();
   if (!raw.trim()) {
-    return undefined as TResponse;
+    return undefined;
   }
 
   try {
-    return JSON.parse(raw) as TResponse;
+    return JSON.parse(raw);
   } catch {
-    return raw as TResponse;
+    return raw;
   }
 }
 
-export async function getJson<TResponse>(
-  path: string,
-  query?: Record<string, QueryValue>,
-): Promise<TResponse> {
+export async function getJson(path, query) {
   const response = await fetch(`${IOT_CONFIG.apiBaseUrl}${path}${toQueryString(query)}`, {
     method: 'GET',
   });
@@ -65,17 +56,17 @@ export async function getJson<TResponse>(
   }
 
   if (response.status === 204) {
-    return undefined as TResponse;
+    return undefined;
   }
 
   const raw = await response.text();
   if (!raw.trim()) {
-    return undefined as TResponse;
+    return undefined;
   }
 
   try {
-    return JSON.parse(raw) as TResponse;
+    return JSON.parse(raw);
   } catch {
-    return raw as TResponse;
+    return raw;
   }
 }

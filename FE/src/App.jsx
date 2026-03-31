@@ -15,7 +15,7 @@ const navigationItems = [
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];
 
-function App() {
+export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'aurora');
   }, []);
@@ -37,5 +37,3 @@ function App() {
     </div>
   );
 }
-
-export default App;

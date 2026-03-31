@@ -1,13 +1,13 @@
 export const dashboardSeries = [
-  { time: '19:10', temperature: 90, humidity: 18 },
-  { time: '19:12', temperature: 60, humidity: 48 },
-  { time: '19:15', temperature: 68, humidity: 72 },
-  { time: '19:18', temperature: 50, humidity: 82 },
-  { time: '19:20', temperature: 66, humidity: 22 },
-  { time: '19:23', temperature: 92, humidity: 28 },
-  { time: '19:25', temperature: 48, humidity: 98 },
-  { time: '19:27', temperature: 52, humidity: 58 },
-  { time: '19:30', temperature: 60, humidity: 61 },
+  { time: '19:10', temperature: 90, humidity: 18, windspeed: 24 },
+  { time: '19:12', temperature: 60, humidity: 48, windspeed: 30 },
+  { time: '19:15', temperature: 68, humidity: 72, windspeed: 38 },
+  { time: '19:18', temperature: 50, humidity: 82, windspeed: 44 },
+  { time: '19:20', temperature: 66, humidity: 22, windspeed: 58 },
+  { time: '19:23', temperature: 92, humidity: 28, windspeed: 63 },
+  { time: '19:25', temperature: 48, humidity: 98, windspeed: 71 },
+  { time: '19:27', temperature: 52, humidity: 58, windspeed: 54 },
+  { time: '19:30', temperature: 60, humidity: 61, windspeed: 47 },
 ];
 
 export const lightSeries = [

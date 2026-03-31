@@ -14,7 +14,8 @@ public class ActionHistorySpecification {
             String nameDevice,
             String action,
             String status,
-            LocalDateTime dateTime
+            LocalDateTime startDateTime,
+            LocalDateTime endDateTime
     ) {
 
         return (Root<ActionHistory> root,
@@ -45,12 +46,9 @@ public class ActionHistorySpecification {
                 );
             }
 
-            if (dateTime != null) {
-                LocalDateTime start = dateTime;
-                LocalDateTime endExclusive = dateTime.plusSeconds(1);
-
-                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), start));
-                predicates.add(cb.lessThan(root.get("dateTime"), endExclusive));
+            if (startDateTime != null && endDateTime != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dateTime"), startDateTime));
+                predicates.add(cb.lessThan(root.get("dateTime"), endDateTime));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

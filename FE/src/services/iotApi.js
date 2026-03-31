@@ -1,45 +1,13 @@
 import { getJson, postJson } from './http';
 import { IOT_CONFIG } from '../config/iot';
-import {
-  ActionHistoryRecord,
-  DeviceAction,
-  DeviceKey,
-  PagedResult,
-  SensorRecord,
-  SortDirection,
-} from '../types/iot';
 
-type SearchOptions = {
-  page?: number;
-  size?: number;
-  sortBy?: string;
-  direction?: SortDirection;
-};
-
-type UnknownApiPayload = Record<string, unknown>;
-
-type SensorSearchBody = {
-  nameSensor?: string;
-  value?: number;
-  sensorId?: number;
-  dateTime?: string;
-};
-
-type ActionSearchBody = {
-  nameDevice?: string;
-  status?: string;
-  action?: string;
-  date?: string;
-  dateTime?: string;
-};
-
-const DEVICE_LED_FALLBACK_MAP: Record<DeviceKey, string[]> = {
+const DEVICE_LED_FALLBACK_MAP = {
   fan: ['fan', 'vang'],
   air_condition: ['air_condition', 'xanh'],
   light_bulb: ['light_bulb', 'do'],
 };
 
-function extractRows(payload: unknown): unknown[] {
+function extractRows(payload) {
   if (Array.isArray(payload)) {
     return payload;
   }
@@ -48,7 +16,7 @@ function extractRows(payload: unknown): unknown[] {
     return [];
   }
 
-  const objectPayload = payload as UnknownApiPayload;
+  const objectPayload = payload;
 
   if (Array.isArray(objectPayload.content)) {
     return objectPayload.content;
@@ -59,7 +27,7 @@ function extractRows(payload: unknown): unknown[] {
   }
 
   if (objectPayload.data && typeof objectPayload.data === 'object') {
-    const nestedData = objectPayload.data as UnknownApiPayload;
+    const nestedData = objectPayload.data;
     if (Array.isArray(nestedData.content)) {
       return nestedData.content;
     }
@@ -68,12 +36,12 @@ function extractRows(payload: unknown): unknown[] {
   return [];
 }
 
-function extractTotal(payload: unknown, rowCount: number): number {
+function extractTotal(payload, rowCount) {
   if (!payload || typeof payload !== 'object') {
     return rowCount;
   }
 
-  const objectPayload = payload as UnknownApiPayload;
+  const objectPayload = payload;
 
   const candidates = [objectPayload.totalElements, objectPayload.total, objectPayload.count];
   for (const candidate of candidates) {
@@ -83,7 +51,7 @@ function extractTotal(payload: unknown, rowCount: number): number {
   }
 
   if (objectPayload.data && typeof objectPayload.data === 'object') {
-    const nestedData = objectPayload.data as UnknownApiPayload;
+    const nestedData = objectPayload.data;
     if (typeof nestedData.totalElements === 'number') {
       return nestedData.totalElements;
     }
@@ -92,7 +60,7 @@ function extractTotal(payload: unknown, rowCount: number): number {
   return rowCount;
 }
 
-function formatDateTime(input: unknown): string {
+function formatDateTime(input) {
   if (typeof input !== 'string' || !input.trim()) {
     return '-';
   }
@@ -100,7 +68,7 @@ function formatDateTime(input: unknown): string {
   return input.replace('T', ' ');
 }
 
-function parseNumber(input: unknown): number | undefined {
+function parseNumber(input) {
   if (typeof input === 'number' && Number.isFinite(input)) {
     return input;
   }
@@ -115,7 +83,7 @@ function parseNumber(input: unknown): number | undefined {
   return undefined;
 }
 
-function sensorUnit(sensorName: string): string {
+function sensorUnit(sensorName) {
   const normalized = sensorName.toLowerCase();
   if (normalized.includes('temp') || normalized.includes('nhiet') || normalized.includes('nhiệt')) {
     return '°C';
@@ -126,11 +94,14 @@ function sensorUnit(sensorName: string): string {
   if (normalized.includes('light') || normalized.includes('anh sang') || normalized.includes('ánh sáng')) {
     return ' Lux';
   }
+  if (normalized.includes('wind') || normalized.includes('gio') || normalized.includes('gió')) {
+    return ' m/s';
+  }
   return '';
 }
 
-function mapSensorRow(raw: unknown, fallbackId: number): SensorRecord {
-  const objectRow = (raw && typeof raw === 'object' ? raw : {}) as UnknownApiPayload;
+function mapSensorRow(raw, fallbackId) {
+  const objectRow = raw && typeof raw === 'object' ? raw : {};
   const name =
     typeof objectRow.nameSensor === 'string'
       ? objectRow.nameSensor
@@ -159,7 +130,7 @@ function mapSensorRow(raw: unknown, fallbackId: number): SensorRecord {
   };
 }
 
-function normalizeAction(input: unknown): string {
+function normalizeAction(input) {
   if (typeof input !== 'string') {
     return '-';
   }
@@ -167,8 +138,8 @@ function normalizeAction(input: unknown): string {
   return input.toUpperCase();
 }
 
-function mapActionRow(raw: unknown, fallbackId: number): ActionHistoryRecord {
-  const objectRow = (raw && typeof raw === 'object' ? raw : {}) as UnknownApiPayload;
+function mapActionRow(raw, fallbackId) {
+  const objectRow = raw && typeof raw === 'object' ? raw : {};
 
   return {
     id:
@@ -189,11 +160,8 @@ function mapActionRow(raw: unknown, fallbackId: number): ActionHistoryRecord {
   };
 }
 
-export async function searchDataSensor(
-  body: SensorSearchBody,
-  options: SearchOptions,
-): Promise<PagedResult<SensorRecord>> {
-  const response = await getJson<unknown>('/api/data-sensor/search', {
+export async function searchDataSensor(body, options) {
+  const response = await getJson('/api/data-sensor/search', {
     nameSensor: body.nameSensor,
     value: body.value,
     sensorId: body.sensorId,
@@ -211,11 +179,8 @@ export async function searchDataSensor(
   };
 }
 
-export async function searchActionHistory(
-  body: ActionSearchBody,
-  options: SearchOptions,
-): Promise<PagedResult<ActionHistoryRecord>> {
-  const response = await getJson<unknown>('/api/action-history/search', {
+export async function searchActionHistory(body, options) {
+  const response = await getJson('/api/action-history/search', {
     nameDevice: body.nameDevice,
     status: body.status,
     action: body.action,
@@ -234,13 +199,13 @@ export async function searchActionHistory(
   };
 }
 
-export async function controlDevice(deviceName: DeviceKey, action: DeviceAction): Promise<void> {
+export async function controlDevice(deviceName, action) {
   const candidates = [
     IOT_CONFIG.deviceLedMap[deviceName],
     ...DEVICE_LED_FALLBACK_MAP[deviceName],
-  ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
+  ].filter((value, index, array) => Boolean(value) && array.indexOf(value) === index);
 
-  let lastError: unknown;
+  let lastError;
 
   for (const ledName of candidates) {
     try {

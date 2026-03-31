@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { profileData } from '../data/mockData';
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function InfoField({ label, value }) {
   return (
     <div className="info-field">
       <span>{label}</span>
@@ -12,15 +12,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function LinkField({
-  label,
-  value,
-  displayText,
-}: {
-  label: string;
-  value: string;
-  displayText?: string;
-}) {
+function LinkField({ label, value, displayText }) {
   return (
     <div className="link-field">
       <span>{label}</span>

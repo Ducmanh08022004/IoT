@@ -1,24 +1,14 @@
-import { Client, IMessage } from '@stomp/stompjs';
+import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client/dist/sockjs';
 import { IOT_CONFIG } from '../config/iot';
-import { DeviceAction, DeviceKey, DeviceRealtimeMessage, SensorRealtimeMessage } from '../types/iot';
 
-type RealtimeHandlers = {
-  onSensor: (message: SensorRealtimeMessage) => void;
-  onDeviceStatus: (message: DeviceRealtimeMessage) => void;
-  onConnectionChange?: (connected: boolean) => void;
-  onReconnect?: () => void;
-};
-
-type UnknownPayload = Record<string, unknown>;
-
-function toLocalDateTimeString(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0');
+function toLocalDateTimeString(date) {
+  const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-function parseJson(message: IMessage): unknown {
-  let current: unknown = message.body;
+function parseJson(message) {
+  let current = message.body;
 
   for (let index = 0; index < 2; index += 1) {
     if (typeof current !== 'string') {
@@ -45,7 +35,7 @@ function parseJson(message: IMessage): unknown {
   return current;
 }
 
-function parseNumeric(input: unknown): number | null {
+function parseNumeric(input) {
   if (typeof input === 'number' && Number.isFinite(input)) {
     return input;
   }
@@ -66,7 +56,7 @@ function parseNumeric(input: unknown): number | null {
   return null;
 }
 
-function toWsHttpUrl(wsUrl: string): string {
+function toWsHttpUrl(wsUrl) {
   if (wsUrl.startsWith('ws://')) {
     return `http://${wsUrl.slice('ws://'.length)}`;
   }
@@ -76,7 +66,7 @@ function toWsHttpUrl(wsUrl: string): string {
   return wsUrl;
 }
 
-function collectObjects(payload: unknown): UnknownPayload[] {
+function collectObjects(payload) {
   if (!payload) {
     return [];
   }
@@ -89,24 +79,24 @@ function collectObjects(payload: unknown): UnknownPayload[] {
     return [];
   }
 
-  const current = payload as UnknownPayload;
+  const current = payload;
   const nestedKeys = ['data', 'payload', 'body', 'result', 'message'];
   const nested = nestedKeys.flatMap((key) => collectObjects(current[key]));
 
   return [current, ...nested];
 }
 
-function isDeviceKey(value: string): value is DeviceKey {
+function isDeviceKey(value) {
   return value === 'air_condition' || value === 'light_bulb' || value === 'fan';
 }
 
-function normalizeDeviceKey(input: unknown): DeviceKey | null {
+function normalizeDeviceKey(input) {
   if (typeof input !== 'string') {
     return null;
   }
 
   const normalized = input.trim().toLowerCase().replace(/[-\s]+/g, '_');
-  const aliases: Record<string, DeviceKey> = {
+  const aliases = {
     do: 'light_bulb',
     xanh: 'air_condition',
     vang: 'fan',
@@ -121,7 +111,7 @@ function normalizeDeviceKey(input: unknown): DeviceKey | null {
   return isDeviceKey(normalized) ? normalized : null;
 }
 
-function toDeviceAction(input: unknown): DeviceAction | null {
+function toDeviceAction(input) {
   if (typeof input !== 'string') {
     return null;
   }
@@ -134,11 +124,11 @@ function toDeviceAction(input: unknown): DeviceAction | null {
   return null;
 }
 
-function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
+function parseSensorMessage(payload) {
   const now = toLocalDateTimeString(new Date());
 
   if (typeof payload === 'string') {
-    const inlinePairs = payload.match(/(temperature|humidity|light|temp|humid|lux)\s*[:=]\s*(-?\d+(?:\.\d+)?)/gi);
+    const inlinePairs = payload.match(/(temperature|humidity|light|windspeed|wind[_\s-]?speed|temp|humid|lux|wind)\s*[:=]\s*(-?\d+(?:\.\d+)?)/gi);
     if (!inlinePairs) {
       return [];
     }
@@ -162,18 +152,20 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
         if (key === 'humidity' || key === 'humid') {
           return { sensorName: 'Humidity', value, time: now };
         }
+        if (key === 'windspeed' || key === 'wind_speed' || key === 'wind-speed' || key === 'wind') {
+          return { sensorName: 'Wind Speed', value, time: now };
+        }
         return { sensorName: 'Light', value, time: now };
       })
-      .filter((item): item is SensorRealtimeMessage => item !== null);
+      .filter((item) => item !== null);
 
     return mapped;
   }
 
   const objects = collectObjects(payload);
-  const parsed: SensorRealtimeMessage[] = [];
+  const parsed = [];
 
   for (const data of objects) {
-
     const singleSensorName =
       typeof data.nameSensor === 'string'
         ? data.nameSensor
@@ -201,13 +193,17 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
       }
     }
 
-    const compoundCandidates: Array<[string, string]> = [
+    const compoundCandidates = [
       ['Temperature', 'temperature'],
       ['Temperature', 'temp'],
       ['Humidity', 'humidity'],
       ['Humidity', 'humid'],
       ['Light', 'light'],
       ['Light', 'lux'],
+      ['Wind Speed', 'windspeed'],
+      ['Wind Speed', 'wind_speed'],
+      ['Wind Speed', 'wind-speed'],
+      ['Wind Speed', 'wind'],
     ];
 
     for (const [label, key] of compoundCandidates) {
@@ -230,7 +226,7 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
     }
   }
 
-  const deduped = new Map<string, SensorRealtimeMessage>();
+  const deduped = new Map();
   parsed.forEach((item) => {
     deduped.set(`${item.sensorName}-${item.time}`, item);
   });
@@ -238,8 +234,8 @@ function parseSensorMessage(payload: unknown): SensorRealtimeMessage[] {
   return Array.from(deduped.values());
 }
 
-function parseDeviceMessage(payload: unknown): DeviceRealtimeMessage | null {
-  const parseStringMessage = (text: string): DeviceRealtimeMessage | null => {
+function parseDeviceMessage(payload) {
+  const parseStringMessage = (text) => {
     const normalized = text.toLowerCase();
     const match = normalized.match(/(do|xanh|vang|fan|air[_\s-]?condition|light[_\s-]?bulb)\s+(on|off)(?:\s+(\w+))?/);
     if (match) {
@@ -250,7 +246,7 @@ function parseDeviceMessage(payload: unknown): DeviceRealtimeMessage | null {
 
       return {
         deviceName: mappedDevice,
-        action: match[2] as DeviceAction,
+        action: match[2],
         status: match[3],
       };
     }
@@ -288,14 +284,14 @@ function parseDeviceMessage(payload: unknown): DeviceRealtimeMessage | null {
   return null;
 }
 
-function isReconnectSignal(payload: unknown): boolean {
+function isReconnectSignal(payload) {
   const message = (() => {
     if (typeof payload === 'string') {
       return payload;
     }
 
     if (typeof payload === 'object' && payload !== null && 'message' in payload) {
-      const candidate = (payload as UnknownPayload).message;
+      const candidate = payload.message;
       if (typeof candidate === 'string') {
         return candidate;
       }
@@ -312,7 +308,7 @@ function isReconnectSignal(payload: unknown): boolean {
     || normalized === 'esp32 online';
 }
 
-export function connectIotRealtime(handlers: RealtimeHandlers): () => void {
+export function connectIotRealtime(handlers) {
   const sockJsHttpUrl = toWsHttpUrl(IOT_CONFIG.wsUrl);
   const subscriptions = [
     '/topic/sensor',

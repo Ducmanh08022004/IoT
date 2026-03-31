@@ -12,5 +12,6 @@ public class actionHistoryFilterRequest {
     private String nameDevice;
     private String status;
     private String action;
-    private LocalDateTime dateTime;
+    private LocalDateTime startDateTime;
+    private LocalDateTime endDateTime;
 }

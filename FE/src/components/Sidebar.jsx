@@ -1,17 +1,6 @@
-import { LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-type NavigationItem = {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-};
-
-type SidebarProps = {
-  items: NavigationItem[];
-};
-
-export function Sidebar({ items }: SidebarProps) {
+export function Sidebar({ items }) {
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -27,9 +16,7 @@ export function Sidebar({ items }: SidebarProps) {
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              isActive ? 'sidebar__link sidebar__link--active' : 'sidebar__link'
-            }
+            className={({ isActive }) => (isActive ? 'sidebar__link sidebar__link--active' : 'sidebar__link')}
           >
             <Icon size={18} strokeWidth={2.4} />
             <span>{label}</span>

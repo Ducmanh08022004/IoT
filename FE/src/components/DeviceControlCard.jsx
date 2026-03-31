@@ -1,17 +1,3 @@
-import { LucideIcon } from 'lucide-react';
-import { DeviceKey } from '../types/iot';
-
-type DeviceControlCardProps = {
-  deviceKey: DeviceKey;
-  name: string;
-  icon: LucideIcon;
-  active: boolean;
-  accent: string;
-  disabled?: boolean;
-  pending?: boolean;
-  onToggle?: () => void;
-};
-
 export function DeviceControlCard({
   deviceKey,
   name,
@@ -21,7 +7,7 @@ export function DeviceControlCard({
   disabled = false,
   pending = false,
   onToggle,
-}: DeviceControlCardProps) {
+}) {
   const statusLabel = pending ? 'Pending...' : active ? 'Online' : 'Offline';
   const statusClassName = pending
     ? 'device-card__status device-card__status--pending'

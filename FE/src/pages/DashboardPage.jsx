@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Fan, Lightbulb, Snowflake, Thermometer, Waves, SunMedium } from 'lucide-react';
+import { Fan, Lightbulb, Snowflake, Thermometer, Waves, SunMedium, Wind } from 'lucide-react';
 import { ChartCard } from '../components/ChartCard';
 import { DeviceControlCard } from '../components/DeviceControlCard';
 import { PageHeader } from '../components/PageHeader';
@@ -8,53 +8,27 @@ import { IOT_CONFIG } from '../config/iot';
 import { dashboardSeries, lightSeries } from '../data/mockData';
 import { controlDevice, searchActionHistory, searchDataSensor } from '../services/iotApi';
 import { connectIotRealtime } from '../services/iotRealtime';
-import { DeviceAction, DeviceKey } from '../types/iot';
 
-type DeviceState = Record<DeviceKey, boolean>;
-type PendingState = Record<DeviceKey, boolean>;
+const TEMP_THRESHOLDS = { low: 20, mid: 30, high: 40 };
+const HUMIDITY_THRESHOLDS = { low: 40, mid: 60, high: 80 };
+const LIGHT_THRESHOLDS = { low: 100, midLow: 400, midHigh: 1500, high: 3000 };
+const WIND_THRESHOLDS = { low: 20, mid: 60, high: 100 };
 
-type TempHumidityPoint = {
-  time: string;
-  temperature?: number;
-  humidity?: number;
-};
-
-type LightPoint = {
-  time: string;
-  light: number;
-};
-
-type MetricKey = 'temperature' | 'humidity' | 'light';
-type GradientStop = { at: number; color: string };
-type ControlStatus = 'SUCCESS' | 'FAILED';
-type ControlNotice = {
-  id: number;
-  device: DeviceKey;
-  action: DeviceAction;
-  status: ControlStatus;
-  reason: string;
-  time: string;
-};
-
-const TEMP_THRESHOLDS = { low: 20, mid: 30, high: 40 } as const;
-const HUMIDITY_THRESHOLDS = { low: 40, mid: 60, high: 80 } as const;
-const LIGHT_THRESHOLDS = { low: 100, midLow: 400, midHigh: 1500, high: 3000 } as const;
-
-const DEVICE_LABELS: Record<DeviceKey, string> = {
+const DEVICE_LABELS = {
   fan: 'Fan',
   air_condition: 'Air Conditioner',
   light_bulb: 'Light Bulb',
 };
 
-const DEFAULT_DEVICE_STATE: DeviceState = {
+const DEFAULT_DEVICE_STATE = {
   fan: false,
   air_condition: false,
   light_bulb: false,
 };
 
-function normalizeDeviceName(deviceName: string): DeviceKey | null {
+function normalizeDeviceName(deviceName) {
   const normalized = deviceName.trim().toLowerCase().replace(/[-\s]+/g, '_');
-  const aliases: Record<string, DeviceKey> = {
+  const aliases = {
     fan: 'fan',
     vang: 'fan',
     air_condition: 'air_condition',
@@ -68,7 +42,7 @@ function normalizeDeviceName(deviceName: string): DeviceKey | null {
   return aliases[normalized] ?? null;
 }
 
-const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | null> = {
+const SENSOR_NAME_MAP = {
   temperature: 'temperature',
   humidity: 'humidity',
   light: 'light',
@@ -84,26 +58,30 @@ const SENSOR_NAME_MAP: Record<string, 'temperature' | 'humidity' | 'light' | nul
   lm35_livingroom: 'temperature',
   dht22_livingroom: 'humidity',
   g100_livingroom: 'light',
+  wind_speed: 'windspeed',
+  windspeed: 'windspeed',
+  gio: 'windspeed',
+  gió: 'windspeed',
 };
 
 const DEVICE_ACK_TIMEOUT_MS = 5000;
 const CONTROL_NOTICE_TIMEOUT_MS = 2000;
-const TEMP_MOCK_BANDS: Array<[number, number]> = [[18, 21.5], [22, 29.5], [30, 35.5], [36, 42]];
-const HUMIDITY_MOCK_BANDS: Array<[number, number]> = [[20, 39], [40, 59], [60, 79], [80, 95]];
-const LIGHT_MOCK_BANDS: Array<[number, number]> = [[20, 95], [100, 380], [400, 1450], [1500, 2950], [3000, 12000]];
+const TEMP_MOCK_BANDS = [[18, 21.5], [22, 29.5], [30, 35.5], [36, 42]];
+const HUMIDITY_MOCK_BANDS = [[20, 39], [40, 59], [60, 79], [80, 95]];
+const LIGHT_MOCK_BANDS = [[20, 95], [100, 380], [400, 1450], [1500, 2950], [3000, 12000]];
 
-function clamp(value: number, min: number, max: number): number {
+function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function toRatio(value: number, min: number, max: number): number {
+function toRatio(value, min, max) {
   if (max <= min) {
     return 0;
   }
   return clamp((value - min) / (max - min), 0, 1);
 }
 
-function hexToRgb(hex: string): [number, number, number] {
+function hexToRgb(hex) {
   const normalized = hex.replace('#', '');
   const full = normalized.length === 3
     ? normalized.split('').map((char) => `${char}${char}`).join('')
@@ -115,7 +93,7 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-function interpolateColor(fromHex: string, toHex: string, ratio: number): string {
+function interpolateColor(fromHex, toHex, ratio) {
   const [fr, fg, fb] = hexToRgb(fromHex);
   const [tr, tg, tb] = hexToRgb(toHex);
   const r = Math.round(fr + (tr - fr) * ratio);
@@ -124,7 +102,7 @@ function interpolateColor(fromHex: string, toHex: string, ratio: number): string
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function interpolateGradient(ratio: number, stops: GradientStop[]): string {
+function interpolateGradient(ratio, stops) {
   if (stops.length === 0) {
     return 'rgb(255, 255, 255)';
   }
@@ -150,11 +128,11 @@ function interpolateGradient(ratio: number, stops: GradientStop[]): string {
   return sortedStops[sortedStops.length - 1].color;
 }
 
-function stopAt(value: number, min: number, max: number): number {
+function stopAt(value, min, max) {
   return toRatio(value, min, max);
 }
 
-function temperatureIconColor(value: number): string {
+function temperatureIconColor(value) {
   const ratio = toRatio(value, TEMP_THRESHOLDS.low, TEMP_THRESHOLDS.high);
   return interpolateGradient(ratio, [
     { at: 0, color: '#64d8ff' },
@@ -163,7 +141,7 @@ function temperatureIconColor(value: number): string {
   ]);
 }
 
-function humidityIconColor(value: number): string {
+function humidityIconColor(value) {
   const ratio = toRatio(value, HUMIDITY_THRESHOLDS.low, HUMIDITY_THRESHOLDS.high);
   return interpolateGradient(ratio, [
     { at: 0, color: '#d58a2f' },
@@ -172,7 +150,7 @@ function humidityIconColor(value: number): string {
   ]);
 }
 
-function lightIconColor(value: number): string {
+function lightIconColor(value) {
   const ratio = toRatio(value, LIGHT_THRESHOLDS.low, LIGHT_THRESHOLDS.high);
   return interpolateGradient(ratio, [
     { at: 0, color: '#6b4f2b' },
@@ -182,7 +160,16 @@ function lightIconColor(value: number): string {
   ]);
 }
 
-function normalizeSensorName(sensorName: string): 'temperature' | 'humidity' | 'light' | null {
+function windspeedIconColor(value) {
+  const ratio = toRatio(value, WIND_THRESHOLDS.low, WIND_THRESHOLDS.high);
+  return interpolateGradient(ratio, [
+    { at: 0, color: '#64c4ff' },
+    { at: stopAt(WIND_THRESHOLDS.mid, WIND_THRESHOLDS.low, WIND_THRESHOLDS.high), color: '#f59a3d' },
+    { at: 1, color: '#d83535' },
+  ]);
+}
+
+function normalizeSensorName(sensorName) {
   const normalized = sensorName
     .trim()
     .toLowerCase()
@@ -191,7 +178,7 @@ function normalizeSensorName(sensorName: string): 'temperature' | 'humidity' | '
   return SENSOR_NAME_MAP[normalized] ?? null;
 }
 
-function toTimeLabel(input: string): string {
+function toTimeLabel(input) {
   if (!input || input === '-') {
     return '--:--';
   }
@@ -211,75 +198,77 @@ function toTimeLabel(input: string): string {
 
   const parsed = new Date(trimmed);
   if (!Number.isNaN(parsed.getTime())) {
-    const pad = (value: number) => String(value).padStart(2, '0');
+    const pad = (value) => String(value).padStart(2, '0');
     return `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}:${pad(parsed.getSeconds())}`;
   }
 
   return normalized;
 }
 
-function roundToOneDecimal(value: number): number {
+function roundToOneDecimal(value) {
   return Math.round(value * 10) / 10;
 }
 
-function toNowLabel(): string {
+function toNowLabel() {
   const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
+  const pad = (value) => String(value).padStart(2, '0');
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
-function nowTimeLabel(): string {
+function nowTimeLabel() {
   return new Date().toLocaleTimeString('vi-VN', { hour12: false });
 }
 
-function pickBandValue(bands: Array<[number, number]>, cycleIndex: number): number {
+function pickBandValue(bands, cycleIndex) {
   const [min, max] = bands[cycleIndex % bands.length];
   return min + Math.random() * (max - min);
 }
 
-function generateMockNextAcrossThresholds(
-  previous: { temperature: number; humidity: number; light: number },
-  cycleIndex: number,
-) {
+function generateMockNextAcrossThresholds(previous, cycleIndex) {
   const tempTarget = pickBandValue(TEMP_MOCK_BANDS, cycleIndex);
   const humidityTarget = pickBandValue(HUMIDITY_MOCK_BANDS, cycleIndex + 1);
   const lightTarget = pickBandValue(LIGHT_MOCK_BANDS, cycleIndex + 2);
+  const windBands = [[12, 28], [30, 46], [48, 68], [70, 92]];
+  const windTarget = pickBandValue(windBands, cycleIndex + 3);
 
   const blendFactor = cycleIndex % 2 === 0 ? 0.78 : 0.62;
 
   const nextTemperature = previous.temperature + (tempTarget - previous.temperature) * blendFactor + (Math.random() - 0.5) * 1.1;
   const nextHumidity = previous.humidity + (humidityTarget - previous.humidity) * blendFactor + (Math.random() - 0.5) * 2.8;
   const nextLight = previous.light + (lightTarget - previous.light) * (blendFactor + 0.08) + (Math.random() - 0.5) * 360;
+  const nextWindSpeed = previous.windspeed + (windTarget - previous.windspeed) * (blendFactor + 0.04) + (Math.random() - 0.5) * 4.5;
 
   return {
     temperature: roundToOneDecimal(clamp(nextTemperature, 18, 42)),
     humidity: roundToOneDecimal(clamp(nextHumidity, 20, 95)),
     light: Math.round(clamp(nextLight, 20, 12000)),
+    windspeed: roundToOneDecimal(clamp(nextWindSpeed, 8, 100)),
   };
 }
 
 export function DashboardPage() {
-  const [tempHumidityData, setTempHumidityData] = useState<TempHumidityPoint[]>(dashboardSeries);
-  const [lightData, setLightData] = useState<LightPoint[]>(lightSeries);
-  const [latestValues, setLatestValues] = useState({ temperature: 35, humidity: 54, light: 400 });
-  const [deviceState, setDeviceState] = useState<DeviceState>(DEFAULT_DEVICE_STATE);
-  const [pending, setPending] = useState<PendingState>(DEFAULT_DEVICE_STATE);
+  const [environmentData, setEnvironmentData] = useState(dashboardSeries);
+  const [lightData, setLightData] = useState(lightSeries);
+  const [latestValues, setLatestValues] = useState({ temperature: 35, humidity: 54, light: 400, windspeed: 38 });
+  const [deviceState, setDeviceState] = useState(DEFAULT_DEVICE_STATE);
+  const [pending, setPending] = useState(DEFAULT_DEVICE_STATE);
   const [isWsConnected, setIsWsConnected] = useState(false);
-  const [controlNotice, setControlNotice] = useState<ControlNotice | null>(null);
-  const [liveMetric, setLiveMetric] = useState<Record<MetricKey, boolean>>({
+  const [controlNotice, setControlNotice] = useState(null);
+  const [liveMetric, setLiveMetric] = useState({
     temperature: false,
     humidity: false,
     light: false,
+    windspeed: false,
   });
-  const ackTimeoutRef = useRef<Partial<Record<DeviceKey, number>>>({});
-  const pendingActionRef = useRef<Partial<Record<DeviceKey, DeviceAction>>>({});
-  const pendingPreviousStateRef = useRef<Partial<Record<DeviceKey, boolean>>>({});
-  const liveMetricTimeoutRef = useRef<Partial<Record<MetricKey, number>>>({});
-  const mockTickRef = useRef<number | null>(null);
+  const ackTimeoutRef = useRef({});
+  const pendingActionRef = useRef({});
+  const pendingPreviousStateRef = useRef({});
+  const liveMetricTimeoutRef = useRef({});
+  const mockTickRef = useRef(null);
   const mockCycleRef = useRef(0);
-  const controlNoticeTimeoutRef = useRef<number | null>(null);
+  const controlNoticeTimeoutRef = useRef(null);
 
-  const pushControlNotice = useCallback((notice: Omit<ControlNotice, 'id' | 'time'>) => {
+  const pushControlNotice = useCallback((notice) => {
     if (controlNoticeTimeoutRef.current !== null) {
       window.clearTimeout(controlNoticeTimeoutRef.current);
     }
@@ -296,7 +285,7 @@ export function DashboardPage() {
     }, CONTROL_NOTICE_TIMEOUT_MS);
   }, []);
 
-  const pulseMetric = useCallback((metric: MetricKey) => {
+  const pulseMetric = useCallback((metric) => {
     const timeoutId = liveMetricTimeoutRef.current[metric];
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId);
@@ -317,7 +306,7 @@ export function DashboardPage() {
   }, []);
 
   const clearDeviceControlTracking = useCallback(() => {
-    (Object.keys(ackTimeoutRef.current) as DeviceKey[]).forEach((deviceName) => {
+    Object.keys(ackTimeoutRef.current).forEach((deviceName) => {
       const timeoutId = ackTimeoutRef.current[deviceName];
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
@@ -333,8 +322,8 @@ export function DashboardPage() {
   const refreshDeviceStateFromApi = useCallback(async () => {
     try {
       const result = await searchActionHistory({}, { page: 0, size: 50, sortBy: 'dateTime', direction: 'desc' });
-      const nextState: DeviceState = { ...DEFAULT_DEVICE_STATE };
-      const resolvedDevices = new Set<DeviceKey>();
+      const nextState = { ...DEFAULT_DEVICE_STATE };
+      const resolvedDevices = new Set();
 
       for (const row of result.rows) {
         const deviceName = normalizeDeviceName(row.deviceName);
@@ -360,9 +349,9 @@ export function DashboardPage() {
       const result = await searchDataSensor({}, { page: 0, size: 30, sortBy: 'dateTime', direction: 'desc' });
       const sourceRows = [...result.rows].reverse();
 
-      const tempHumidityMap = new Map<string, TempHumidityPoint>();
-      const nextLightData: LightPoint[] = [];
-      const latest = { temperature: 35, humidity: 54, light: 400 };
+      const environmentMap = new Map();
+      const nextLightData = [];
+      const latest = { temperature: 35, humidity: 54, light: 400, windspeed: 38 };
 
       sourceRows.forEach((row) => {
         const normalized = normalizeSensorName(row.sensorName);
@@ -376,9 +365,9 @@ export function DashboardPage() {
           nextLightData.push({ time: timeLabel, light: row.numericValue });
         }
 
-        if (normalized === 'temperature' || normalized === 'humidity') {
-          const existing = tempHumidityMap.get(timeLabel) ?? { time: timeLabel };
-          tempHumidityMap.set(timeLabel, {
+        if (normalized === 'temperature' || normalized === 'humidity' || normalized === 'windspeed') {
+          const existing = environmentMap.get(timeLabel) ?? { time: timeLabel };
+          environmentMap.set(timeLabel, {
             ...existing,
             [normalized]: row.numericValue,
           });
@@ -387,8 +376,8 @@ export function DashboardPage() {
         latest[normalized] = row.numericValue;
       });
 
-      if (tempHumidityMap.size > 0) {
-        setTempHumidityData(Array.from(tempHumidityMap.values()).slice(-12));
+      if (environmentMap.size > 0) {
+        setEnvironmentData(Array.from(environmentMap.values()).slice(-12));
       }
       if (nextLightData.length > 0) {
         setLightData(nextLightData.slice(-12));
@@ -399,9 +388,9 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    let disconnect: () => void = () => {};
+    let disconnect = () => {};
 
-    const clearDeviceTimeout = (deviceName: DeviceKey) => {
+    const clearDeviceTimeout = (deviceName) => {
       const timeoutId = ackTimeoutRef.current[deviceName];
       if (timeoutId !== undefined) {
         window.clearTimeout(timeoutId);
@@ -415,7 +404,7 @@ export function DashboardPage() {
       if (IOT_CONFIG.useMockSensorData) {
         setIsWsConnected(true);
         return () => {
-          (Object.keys(liveMetricTimeoutRef.current) as MetricKey[]).forEach((metric) => {
+          Object.keys(liveMetricTimeoutRef.current).forEach((metric) => {
             const timeoutId = liveMetricTimeoutRef.current[metric];
             if (timeoutId !== undefined) {
               window.clearTimeout(timeoutId);
@@ -440,8 +429,8 @@ export function DashboardPage() {
 
           pulseMetric(normalized);
 
-          if (normalized === 'temperature' || normalized === 'humidity') {
-            setTempHumidityData((previous) => {
+          if (normalized === 'temperature' || normalized === 'humidity' || normalized === 'windspeed') {
+            setEnvironmentData((previous) => {
               const next = [...previous];
               const sameTimeIndex = next.findIndex((item) => item.time === timeLabel);
               if (sameTimeIndex >= 0) {
@@ -494,7 +483,7 @@ export function DashboardPage() {
 
     return () => {
       disconnect();
-      (Object.keys(ackTimeoutRef.current) as DeviceKey[]).forEach((deviceName) => {
+      Object.keys(ackTimeoutRef.current).forEach((deviceName) => {
         const timeoutId = ackTimeoutRef.current[deviceName];
         if (timeoutId !== undefined) {
           window.clearTimeout(timeoutId);
@@ -503,7 +492,7 @@ export function DashboardPage() {
       ackTimeoutRef.current = {};
       pendingActionRef.current = {};
       pendingPreviousStateRef.current = {};
-      (Object.keys(liveMetricTimeoutRef.current) as MetricKey[]).forEach((metric) => {
+      Object.keys(liveMetricTimeoutRef.current).forEach((metric) => {
         const timeoutId = liveMetricTimeoutRef.current[metric];
         if (timeoutId !== undefined) {
           window.clearTimeout(timeoutId);
@@ -515,7 +504,7 @@ export function DashboardPage() {
         controlNoticeTimeoutRef.current = null;
       }
     };
-  }, [pushControlNotice]);
+  }, [pushControlNotice, pulseMetric, refreshDeviceStateFromApi]);
 
   const temperatureColor = temperatureIconColor(latestValues.temperature);
   const humidityColor = humidityIconColor(latestValues.humidity);
@@ -563,9 +552,14 @@ export function DashboardPage() {
         const next = generateMockNextAcrossThresholds(previous, mockCycleRef.current);
         const timeLabel = toNowLabel();
 
-        setTempHumidityData((tempPrevious) => [
-          ...tempPrevious,
-          { time: timeLabel, temperature: next.temperature, humidity: next.humidity },
+        setEnvironmentData((environmentPrevious) => [
+          ...environmentPrevious,
+          {
+            time: timeLabel,
+            temperature: next.temperature,
+            humidity: next.humidity,
+            windspeed: next.windspeed,
+          },
         ].slice(-12));
 
         setLightData((lightPrevious) => [
@@ -576,6 +570,7 @@ export function DashboardPage() {
         pulseMetric('temperature');
         pulseMetric('humidity');
         pulseMetric('light');
+        pulseMetric('windspeed');
 
         return next;
       });
@@ -594,16 +589,26 @@ export function DashboardPage() {
 
   const deviceCards = useMemo(
     () => [
-      { key: 'fan' as DeviceKey, icon: Fan, accent: '#ff6079' },
-      { key: 'air_condition' as DeviceKey, icon: Snowflake, accent: '#58abc6' },
-      { key: 'light_bulb' as DeviceKey, icon: Lightbulb, accent: '#e7b340' },
+      { key: 'fan', icon: Fan, accent: '#ff6079' },
+      { key: 'air_condition', icon: Snowflake, accent: '#58abc6' },
+      { key: 'light_bulb', icon: Lightbulb, accent: '#e7b340' },
     ],
     [],
   );
 
-  const handleToggleDevice = async (device: DeviceKey) => {
+  const isWindWarning = latestValues.windspeed > 60;
+  const windspeedSeries = useMemo(
+    () => [
+      { key: 'temperature', name: 'Temperature', color: '#ff6f6b' },
+      { key: 'humidity', name: 'Humidity', color: '#5b86ff' },
+      { key: 'windspeed', name: 'Wind Speed', color: '#e4522d' },
+    ],
+    [],
+  );
+
+  const handleToggleDevice = async (device) => {
     const previousState = deviceState[device];
-    const nextAction: DeviceAction = previousState ? 'off' : 'on';
+    const nextAction = previousState ? 'off' : 'on';
 
     const previousTimeout = ackTimeoutRef.current[device];
     if (previousTimeout !== undefined) {
@@ -646,7 +651,6 @@ export function DashboardPage() {
     try {
       await controlDevice(device, nextAction);
     } catch {
-      // Keep pending until the same timeout window expires, then rollback to the previous state.
     }
   };
 
@@ -658,6 +662,16 @@ export function DashboardPage() {
           ? 'Mock Mode: Simulating realtime sensor stream'
           : `WebSocket: ${isWsConnected ? 'Connected' : 'Disconnected'}`}
       />
+
+      {isWindWarning ? (
+        <div className="control-toast control-toast--warning" role="alert">
+          <strong>WARNING</strong>
+          <span>
+            Wind speed is {latestValues.windspeed} m/s. LED 4 is blinking and the backend stores status WARNING.
+          </span>
+          <em>Live</em>
+        </div>
+      ) : null}
 
       {controlNotice ? (
         <div
@@ -700,16 +714,21 @@ export function DashboardPage() {
           isLive={liveMetric.light}
           iconColor={lightColor}
         />
+        <StatCard
+          title="Wind Speed"
+          value={`${latestValues.windspeed} m/s`}
+          accent="wind"
+          icon={Wind}
+          isLive={liveMetric.windspeed}
+          iconColor={windspeedIconColor(latestValues.windspeed)}
+        />
       </div>
 
       <div className="charts-grid">
         <ChartCard
-          title="Temperature & Humidity"
-          data={tempHumidityData}
-          series={[
-            { key: 'temperature', name: 'Temperature', color: '#ff6f6b' },
-            { key: 'humidity', name: 'Humidity', color: '#5b86ff' },
-          ]}
+          title="Temperature, Humidity & Wind Speed"
+          data={environmentData}
+          series={windspeedSeries}
         />
         <ChartCard
           title="Light"

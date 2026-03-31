@@ -55,7 +55,8 @@ public class ActionHistoryService {
                         safeRequest.getNameDevice(),
                         safeRequest.getAction(),
                         safeRequest.getStatus(),
-                        safeRequest.getDateTime()
+                        safeRequest.getStartDateTime(),
+                        safeRequest.getEndDateTime()
                 ),
                 pageable
         );

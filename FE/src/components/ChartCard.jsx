@@ -9,23 +9,7 @@ import {
   YAxis,
 } from 'recharts';
 
-type Series = {
-  key: string;
-  name: string;
-  color: string;
-};
-
-type ChartCardProps<T extends Record<string, string | number>> = {
-  title: string;
-  data: T[];
-  series: Series[];
-};
-
-export function ChartCard<T extends Record<string, string | number>>({
-  title,
-  data,
-  series,
-}: ChartCardProps<T>) {
+export function ChartCard({ title, data, series }) {
   return (
     <article className="panel chart-card">
       <div className="chart-card__header">

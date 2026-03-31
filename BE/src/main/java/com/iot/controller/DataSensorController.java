@@ -32,24 +32,53 @@ public class DataSensorController {
             @RequestParam(defaultValue = "desc") String direction
             )
     {
-        LocalDateTime parsedDateTime = parseDateTimeParam(dateTime);
-        dataSensorFilterRequest request = new dataSensorFilterRequest(nameSensor, value, parsedDateTime, sensorId);
-        return dataSensorService.search(request,page,size,sortBy,direction);
+        LocalDateTime[] dateRange = parseDateTimeRange(dateTime);
+        dataSensorFilterRequest request = new dataSensorFilterRequest(
+                nameSensor,
+                value,
+                dateRange[0],
+                dateRange[1],
+                sensorId
+        );
+        return dataSensorService.search(request, page, size, sortBy, direction);
     }
 
-    private LocalDateTime parseDateTimeParam(String dateTime) {
+    private LocalDateTime[] parseDateTimeRange(String dateTime) {
         if (dateTime == null || dateTime.isBlank()) {
-            return null;
+            return new LocalDateTime[] { null, null };
         }
 
         String value = dateTime.trim()
                 .replace('+', ' ')
                 .replaceAll("\\s+", " ");
 
-        if (value.matches("^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}$")) {
-            value = value + ":00";
+        if (value.matches("^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}$")) {
+            LocalDateTime start = parseDateTime(value);
+            return new LocalDateTime[] { start, start.plusSeconds(1) };
         }
 
+        if (value.matches("^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}$")) {
+            LocalDateTime start = parseDateTime(value + ":00");
+            return new LocalDateTime[] { start, start.plusMinutes(1) };
+        }
+
+        if (value.matches("^\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}$")) {
+            LocalDateTime start = parseDateTime(value + ":00:00");
+            return new LocalDateTime[] { start, start.plusHours(1) };
+        }
+
+        if (value.matches("^\\d{4}-\\d{2}-\\d{2}$")) {
+            LocalDateTime start = parseDateTime(value + " 00:00:00");
+            return new LocalDateTime[] { start, start.plusDays(1) };
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Invalid dateTime format. Use yyyy-MM-dd HH[:mm[:ss]]"
+        );
+    }
+
+    private LocalDateTime parseDateTime(String value) {
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -64,7 +93,7 @@ public class DataSensorController {
 
         throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Invalid dateTime format. Use yyyy-MM-dd'T'HH:mm:ss or yyyy-MM-dd HH:mm:ss"
+            "Invalid dateTime format. Use yyyy-MM-dd HH[:mm[:ss]]"
         );
     }
 }

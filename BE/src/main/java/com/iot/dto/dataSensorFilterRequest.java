@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class dataSensorFilterRequest {
     private String nameSensor;
     private Double value;
-    private LocalDateTime dateTime;
+    private LocalDateTime startDateTime;
+    private LocalDateTime endDateTime;
     private Long sensorId;
 }

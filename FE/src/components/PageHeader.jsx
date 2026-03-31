@@ -1,10 +1,4 @@
-type PageHeaderProps = {
-  title: string;
-  subtitle?: string;
-  actions?: React.ReactNode;
-};
-
-export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions }) {
   return (
     <header className="page-header">
       <div>

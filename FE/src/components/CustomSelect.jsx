@@ -1,37 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
-type SelectOption<T extends string | number> = {
-  value: T;
-  label: string;
-};
-
-type CustomSelectProps<T extends string | number> = {
-  value: T;
-  options: Array<SelectOption<T>>;
-  onChange: (value: T) => void;
-  ariaLabel?: string;
-};
-
-export function CustomSelect<T extends string | number>({
-  value,
-  options,
-  onChange,
-  ariaLabel,
-}: CustomSelectProps<T>) {
+export function CustomSelect({ value, options, onChange, ariaLabel }) {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef(null);
 
   const selected = options.find((option) => option.value === value) ?? options[0];
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
+    const handleClickOutside = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
         setIsOpen(false);
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
       }
@@ -58,7 +41,7 @@ export function CustomSelect<T extends string | number>({
         return;
       }
 
-      const menu = root.querySelector('.custom-select__menu') as HTMLDivElement | null;
+      const menu = root.querySelector('.custom-select__menu');
       if (!menu) {
         return;
       }

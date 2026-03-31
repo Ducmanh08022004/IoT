@@ -1,22 +1,4 @@
-import { LucideIcon } from 'lucide-react';
-
-type StatCardProps = {
-  title: string;
-  value: string;
-  accent: 'temperature' | 'humidity' | 'light';
-  icon: LucideIcon;
-  isLive: boolean;
-  iconColor: string;
-};
-
-export function StatCard({
-  title,
-  value,
-  accent,
-  icon: Icon,
-  isLive,
-  iconColor,
-}: StatCardProps) {
+export function StatCard({ title, value, accent, icon: Icon, isLive, iconColor }) {
   return (
     <article className={`stat-card stat-card--${accent} ${isLive ? 'stat-card--live' : ''}`}>
       <div>

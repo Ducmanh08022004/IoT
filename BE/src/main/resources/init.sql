@@ -22,6 +22,14 @@ WHERE NOT EXISTS (
   WHERE name_device = 'fan'
 );
 
+INSERT INTO device (name_device, date_time)
+SELECT 'warning_light', CURRENT_TIMESTAMP
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM device
+  WHERE name_device = 'warning_light'
+);
+
 INSERT INTO sensor (id, name_sensor, create_at)
 SELECT 1, 'Temperature', CURRENT_TIMESTAMP
 WHERE NOT EXISTS (
@@ -44,4 +52,12 @@ WHERE NOT EXISTS (
   SELECT 1
   FROM sensor
   WHERE id = 3 OR name_sensor = 'Light'
+);
+
+INSERT INTO sensor (id, name_sensor, create_at)
+SELECT 4, 'Wind Speed', CURRENT_TIMESTAMP
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM sensor
+  WHERE id = 4 OR name_sensor = 'Wind Speed'
 );

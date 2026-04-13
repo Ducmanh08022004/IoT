@@ -18,8 +18,8 @@ const DEVICE_FILTER_OPTIONS = [
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All Status' },
-  { value: 'on', label: 'ON' },
-  { value: 'off', label: 'OFF' },
+  { value: 'on', label: 'TURN_ON' },
+  { value: 'off', label: 'TURN_OFF' },
   { value: 'warning', label: 'WARNING' },
 ];
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Filter, Search } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
 
@@ -34,9 +35,27 @@ export function DataTable({
   const total = totalItems ?? rows.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+  const [pageJump, setPageJump] = useState(String(safePage + 1));
   const fromItem = total === 0 ? 0 : safePage * pageSize + 1;
   const toItem = total === 0 ? 0 : Math.min((safePage + 1) * pageSize, total);
   const showFindBySelect = findByOptions.length > 1;
+
+  useEffect(() => {
+    setPageJump(String(safePage + 1));
+  }, [safePage]);
+
+  const jumpToPage = () => {
+    const parsedPage = Number.parseInt(pageJump, 10);
+
+    if (!Number.isFinite(parsedPage)) {
+      setPageJump(String(safePage + 1));
+      return;
+    }
+
+    const nextPage = Math.min(Math.max(parsedPage - 1, 0), totalPages - 1);
+    setPageJump(String(nextPage + 1));
+    onPageChange(nextPage);
+  };
 
   return (
     <section className="panel table-panel">
@@ -141,6 +160,22 @@ export function DataTable({
           onChange={onPageSizeChange}
           ariaLabel="Rows per page"
         />
+        <span>Go to page:</span>
+        <label className="input-wrap table-footer__page-input">
+          <input
+            type="number"
+            min="1"
+            max={totalPages}
+            value={pageJump}
+            onChange={(event) => setPageJump(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                jumpToPage();
+              }
+            }}
+            aria-label="Go to page"
+          />
+        </label>
         <span>
           {fromItem}-{toItem} of {total}
         </span>

@@ -31,6 +31,7 @@ const ACTION_FILTER_OPTIONS = [
 ];
 
 const ACTION_HISTORY_SORT_BY_OPTIONS = [
+  { value: 'dateTime', label: 'Time' },
   { value: 'id', label: 'ID' },
   { value: 'device.nameDevice', label: 'Device Name' },
   { value: 'action', label: 'Action' },

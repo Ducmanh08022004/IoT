@@ -415,7 +415,12 @@ export function DashboardPage() {
       }
 
       disconnect = connectIotRealtime({
-        onConnectionChange: setIsWsConnected,
+        onConnectionChange: (connected) => {
+          setIsWsConnected(connected);
+          if (connected) {
+            void refreshDeviceStateFromApi();
+          }
+        },
         onReconnect: () => {
           void refreshDeviceStateFromApi();
         },
@@ -516,7 +521,8 @@ export function DashboardPage() {
     }
 
     void refreshFromApi();
-  }, [refreshFromApi]);
+    void refreshDeviceStateFromApi();
+  }, [refreshDeviceStateFromApi, refreshFromApi]);
 
   useEffect(() => {
     if (IOT_CONFIG.useMockSensorData) {

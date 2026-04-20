@@ -17,6 +17,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -29,8 +30,9 @@ public class MqttSubscriber {
     private static final double LIGHT_R = 10000.0;
     private static final double LIGHT_GAMMA = 1.405;
     private static final double LIGHT_MAX_LUX = 100000.0;
-    private static final int RECONNECT_SYNC_DEBOUNCE_SECONDS = 15;
+    private static final int RECONNECT_SYNC_DEBOUNCE_SECONDS = 10;
     private static final double WIND_WARNING_THRESHOLD = 60.0;
+    private static final List<String> RECONNECT_TARGET_DEVICES = List.of("fan", "air_condition", "light_bulb");
 
     private final dataSensorRepository dataSensorRepo;
     private final actionHistoryRepository actionHistoryRepo;
@@ -39,7 +41,6 @@ public class MqttSubscriber {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private LocalDateTime lastReconnectSyncAt;
-    private boolean heartbeatInitialSyncDone;
     private boolean warningLightActive;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
@@ -49,11 +50,6 @@ public class MqttSubscriber {
             if ("sensor/data".equals(topic)) {
                 JsonNode json = objectMapper.readTree(payload);
                 LocalDateTime now = LocalDateTime.now();
-
-                if (!heartbeatInitialSyncDone) {
-                    syncDeviceStatesFromDbIfNeeded("sensor-data-heartbeat");
-                    heartbeatInitialSyncDone = true;
-                }
 
                 // Chẻ dữ liệu và lưu vào DB (Khớp với các ID Sensor: 1-Nhiệt độ, 2-Độ ẩm, 3-Ánh sáng, 4-Gió)
                 if (json.has("temperature")) {
@@ -84,7 +80,7 @@ public class MqttSubscriber {
             //  XỬ LÝ PHẢN HỒI THIẾT BỊ
             else if ("device/status".equals(topic)) {
                 if (isReconnectSignal(payload)) {
-                    syncDeviceStatesFromDbIfNeeded("device-status-online");
+                    syncDeviceStatesFromDbOnReconnect();
                 }
 
     
@@ -134,7 +130,7 @@ public class MqttSubscriber {
                 || normalized.equals("esp32 online");
     }
 
-    private void syncDeviceStatesFromDbIfNeeded(String reason) {
+    private void syncDeviceStatesFromDbOnReconnect() {
         LocalDateTime now = LocalDateTime.now();
 
         if (lastReconnectSyncAt != null
@@ -144,19 +140,32 @@ public class MqttSubscriber {
 
         lastReconnectSyncAt = now;
 
-        deviceRepo.findAll().forEach(device -> {
-            String deviceName = device.getNameDevice() == null ? "" : device.getNameDevice().trim().toLowerCase(Locale.ROOT);
-            if ("warning_light".equals(deviceName)) {
-                return;
-            }
+        RECONNECT_TARGET_DEVICES.forEach(targetDeviceName -> {
+            deviceRepo.findByNameDevice(targetDeviceName).ifPresent(device -> {
+                String action = resolveActionForReconnect(device);
+                String ledForEsp = toEspLedName(device.getNameDevice());
+                mqttGateway.sendToMqtt(ledForEsp + " " + action, "device/control");
 
-            String action = resolveActionForReconnect(device);
-
-            String led = device.getNameDevice();
-            mqttGateway.sendToMqtt(led + " " + action, "device/control");
+                // Keep dashboard aligned with the exact reconnect state chosen from SUCCESS history.
+                messagingTemplate.convertAndSend("/topic/device-status", ledForEsp + " " + action + " success");
+            });
         });
 
-        System.out.println("[MQTT] Synced device states from DB to ESP. reason=" + reason);
+        System.out.println("[MQTT] ESP reconnected. Synced latest SUCCESS states for fan/air_condition/light_bulb.");
+    }
+
+    private String toEspLedName(String deviceName) {
+        if (deviceName == null) {
+            return "";
+        }
+
+        String normalized = deviceName.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+        return switch (normalized) {
+            case "light_bulb", "lightbulb", "do" -> "do";
+            case "air_condition", "aircondition", "xanh" -> "xanh";
+            case "fan", "vang" -> "vang";
+            default -> normalized;
+        };
     }
 
     private String resolveActionForReconnect(Device device) {
